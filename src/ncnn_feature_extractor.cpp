@@ -20,7 +20,7 @@ CNCNNFeatureExtractor2::~CNCNNFeatureExtractor2() {
 	}
 }
 
-int CNCNNFeatureExtractor2::Init() {
+int CNCNNFeatureExtractor2::init() {
 	int ret = 0;
 
 	if(net_) {

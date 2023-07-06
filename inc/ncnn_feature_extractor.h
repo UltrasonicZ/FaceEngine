@@ -12,7 +12,7 @@ public:
 	CNCNNFeatureExtractor2();
 	~CNCNNFeatureExtractor2();
 
-	int Init();
+	int init();
 	float ExtractFeature(cv::Mat const & image, std::vector<float> &ret);
 	void  transformPts(std::vector<float> &ret2, std::vector<float> &ret);
 

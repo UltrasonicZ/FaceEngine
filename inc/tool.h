@@ -54,6 +54,8 @@ template <class TYPE>
 double get_point_distance(TYPE p1, TYPE p2) {
     return sqrt(double(square(p1.x - p2.x)) + double(square(p1.y - p2.y)));
 }
+
+
 cv::Mat crop_with_black(cv::Mat const &image, cv::Rect rect); 
 double square(double x);
 cv::Rect get_offset_rect(cv::Rect base, cv::Rect inner);

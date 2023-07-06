@@ -1,12 +1,12 @@
 #ifndef __FOSAFER_FACE_ALIGN__
 #define __FOSAFER_FACE_ALIGN__
 
+#include "ncnn_feature_extractor.h"
+
 #include <vector>
 #include <algorithm>
 #include <cstdio>
 #include <numeric>
-#include "ncnnssd.h"
-#include "ncnn_feature_extractor.h"
 #include <vector>
 
 #define FACE_ALIVE_DETECTED_AND_ALIVE 1
@@ -44,22 +44,22 @@ struct FaceDetectParam
 	float imageScale; 
 	bool bBiggestFaceOnly; 
 	bool bUseSkinColor; 
-} ;
+};
 
-typedef struct _Image
-{
-	unsigned char* data;
-	char name[256];
-	float eye_center[2];
-	float mouth_top[2];
-	float face_rect[4];
-	float land_mark[164];
-	int height;
-	int width;
-	int channel;
-	int size;
-	int type; // type为1表示活体，为0表示非活体
-} Image;
+// typedef struct _Image
+// {
+// 	unsigned char* data;
+// 	char name[256];
+// 	float eye_center[2];
+// 	float mouth_top[2];
+// 	float face_rect[4];
+// 	float land_mark[164];
+// 	int height;
+// 	int width;
+// 	int channel;
+// 	int size;
+// 	int type; // type为1表示活体，为0表示非活体
+// } Image;
 
 typedef struct _Info
 {
@@ -79,10 +79,11 @@ typedef struct _Info
 
 class FOSAFER_face_align {
 public:
-    FOSAFER_face_align(const char *model_dir);
-    ~FOSAFER_face_align();
-    void RectRegionAdjust(double& cx, double& cy, double& width, const cv::Rect& face);
-    float update(cv::Mat const &frame_image, cv::Rect facerect, std::vector<cv::Point2f> *pts);
+    //FOSAFER_face_align(const char *model_dir);
+    FOSAFER_face_align();
+	~FOSAFER_face_align();
+    void RectRegionAdjust(double& center_x, double& center_y, double& width, const cv::Rect& face);
+    float update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts);
     void clear_state();
     cv::Rect get_rect();
 private:
@@ -96,18 +97,16 @@ private:
 
 class FOSAFER_alive_detection {
 public:
-	FOSAFER_alive_detection(const char *model_dir);
+	//FOSAFER_alive_detection(const char *model_dir);
+	FOSAFER_alive_detection();
 	~FOSAFER_alive_detection();
 
 	void init(FaceDetectParam param);
-
-    //  
-	int update(cv::Mat const &frame_image, cv::Rect *face_rect, std::vector<cv::Point2f> *pts, Info *info, float minPercent, float maxPercent);
-
+	int update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts, Info *info, float minPercent, float maxPercent);
 	void set_status(int status);
 
     // 
-    void fosaferdetectface_ssd(cv::Mat const &frame_image, std::vector<FaceRect> &faces);
+    //void fosaferdetectface_ssd(cv::Mat const &frame_image, std::vector<FaceRect> &faces);
 
 private:
 #ifdef TEST_FUNCTION
@@ -127,9 +126,7 @@ private:
     float last_score_;
     cv::Rect last_face_rect_;
 
-    ncnnssd * ncnnssd_;
-
-    FOSAFER_face_align align_;
+    FOSAFER_face_align *align_;
     std::vector<cv::Point2f> pts_;
     std::vector<cv::Point2f> normaled_landmark_;
 

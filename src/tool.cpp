@@ -218,16 +218,17 @@ std::string GetTimeStr2() {
 }
 
 cv::Rect get_intersect_rect(cv::Rect a, cv::Rect b) {
-    cv::Point lt, rb;
-    lt.x = max(a.x, b.x);
-    lt.y = max(a.y, b.y);
+    cv::Point lefttop, rightbottom;
+    lefttop.x = max(a.x, b.x);
+    lefttop.y = max(a.y, b.y);
 
-    rb.x = min(a.x + a.width, b.x + b.width);
-    rb.y = min(a.y + a.height, b.y + b.height);
+    rightbottom.x = min(a.x + a.width, b.x + b.width);
+    rightbottom.y = min(a.y + a.height, b.y + b.height);
 
-    if(lt.x > rb.x || lt.y > rb.y) return cv::Rect(0, 0, 0, 0);
+    if(lefttop.x > rightbottom.x || lefttop.y > rightbottom.y) 
+        return cv::Rect(0, 0, 0, 0);
 
-    cv::Rect res(lt, rb);
+    cv::Rect res(lefttop, rightbottom);
     return res;
 }
 
@@ -258,18 +259,18 @@ cv::Mat crop_with_black(cv::Mat const &image, cv::Rect rect) {
 }
 
 cv::Rect strip_rect(cv::Size imgSize, cv::Rect rect) {
-    cv::Point2f lt, rb;
-    lt.x = rect.x;
-    lt.y = rect.y;
-    rb.x = lt.x + rect.width - 1;
-    rb.y = lt.y + rect.height - 1;
+    cv::Point2f lefttop, rightbottom;
+    lefttop.x = rect.x;
+    lefttop.y = rect.y;
+    rightbottom.x = lefttop.x + rect.width - 1;
+    rightbottom.y = lefttop.y + rect.height - 1;
 
-    lt.x = max(0.0f, lt.x);
-    lt.y = max(0.0f, lt.y);
-    rb.x = min(imgSize.width - 1.0f, rb.x);
-    rb.y = min(imgSize.height - 1.0f, rb.y);
+    lefttop.x = max(0.0f, lefttop.x);
+    lefttop.y = max(0.0f, lefttop.y);
+    rightbottom.x = min(imgSize.width - 1.0f, rightbottom.x);
+    rightbottom.y = min(imgSize.height - 1.0f, rightbottom.y);
 
-    return cv::Rect(lt, rb);
+    return cv::Rect(lefttop, rightbottom);
 }
 
 void decode_string(const char *str, int len, std::string &decoded_str) {

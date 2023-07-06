@@ -1,4 +1,4 @@
-#include "ncnnssd.h"
+#pragma once
 
 #define FACE_SUCCESS 0
 #define FACE_PROCESS 1
@@ -59,6 +59,7 @@ extern "C" {
         int face_num;
         int brightness;
         int resolution;
+        int eye_dist;
     } Image;
 
     typedef void* FACERECOG_ENGINE_HANDLE;
@@ -81,30 +82,4 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-class CFosaferFaceRecogBackend {
-public:
-    CFosaferFaceRecogBackend();
-    ~CFosaferFaceRecogBackend();
-    
-    bool init();
-    int detect(Image* image_input, int rotateCW);
-    
-    void rotate_image_90n(cv::Mat &src, cv::Mat &dst, int angle);
-    //static bool compareVector(const ssdFaceRect &a, const ssdFaceRect &b);
-    cv::Mat ResizeImage(cv::Mat image, int maxDimSize, double *scale_used);
-
-private:
-    void detect_brightness(cv::Mat input_img, float& cast, float& da);
-    double calculate_average_gray_value(const cv::Mat& image_gray, const ssdFaceRect &face);
-    double cal_variance(const cv::Mat& image_gray, const ssdFaceRect &face);
-
-private:
-    double image_max_dim_ = 600;
-    double scale_factor_ = 1;
-
-    ncnnssd *ncnnssd_;
-};
-
-
 

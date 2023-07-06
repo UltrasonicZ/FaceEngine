@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(testSSD_Prj LANGUAGES CXX)
-set(TARGET testSSD)
+set(TARGET face_engine)
 
 set(CMAKE_THREAD_LIBS_INIT "-lpthread")
 set(CMAKE_HAVE_THREADS_LIBRARY 1)
@@ -41,7 +41,9 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/ncnnssd.cpp
     ${CMAKE_SOURCE_DIR}/src/ncnn_feature_extractor.cpp
     ${CMAKE_SOURCE_DIR}/src/facealign.cpp
+    ${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
     ${CMAKE_SOURCE_DIR}/src/tool.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils.cpp
     )
 
 file(GLOB_RECURSE HEADER_LIST ${CMAKE_SOURCE_DIR}/*.h*)
@@ -59,7 +61,7 @@ target_link_libraries(${TARGET}
     )
 
 add_executable(testGZ 
-    testNCNN.cpp 
+    ${CMAKE_SOURCE_DIR}/examples/testNCNN.cpp
     ${SOURCE_LIST}
     )
 

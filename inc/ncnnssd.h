@@ -33,7 +33,6 @@ public:
 		        int ntargetrows=200, int ntargetcols = 200, float fminscore=0.6);
 
 private:
-	//fosaferncnn::Net *m_facenet;
 	ncnn::Net * m_facenet;
 	float mean_vals[3];
 	float norm_vals[3];

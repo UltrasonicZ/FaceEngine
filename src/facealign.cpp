@@ -47,12 +47,9 @@ static float check_tilt(vector<cv::Point2f> const & pts) {
 }
 
 
-FOSAFER_face_align::FOSAFER_face_align(const char *model_dir) {
-    const char * tmp;        // warn 
-    tmp  = model_dir;        // warn
-
+FOSAFER_face_align::FOSAFER_face_align() {
     predictor = new CNCNNFeatureExtractor2();
-    if(0 != predictor->Init()) {
+    if(0 != predictor->init()) {
         FLOG("NCNN model init failed!");
         exit(-1);
     }
@@ -62,46 +59,45 @@ FOSAFER_face_align::FOSAFER_face_align(const char *model_dir) {
 }
 
 FOSAFER_face_align::~FOSAFER_face_align() {
-    delete predictor;
-    predictor = NULL;
+    if(predictor != nullptr)
+    {
+        delete predictor;
+        predictor = nullptr;
+    }
 }
 
-void FOSAFER_face_align::RectRegionAdjust(double& cx, double& cy, double& width, const cv::Rect& face) {
+void FOSAFER_face_align::RectRegionAdjust(double& center_x, double& center_y, double& width, const cv::Rect& face) {
     double bs = 1.1189;
     double bx = 0.029;
     double by = 0.081;
 
     width = std::max(face.width, face.height);
 
-    cx = face.x + face.width / 2.0 + bx * width;
-    cy = face.y + face.height / 2.0 + by * width;
+    center_x = face.x + face.width / 2.0 + bx * width;
+    center_y = face.y + face.height / 2.0 + by * width;
 
     width /= bs;
 }
 
 
-float FOSAFER_face_align::update(cv::Mat const &frame_image, cv::Rect facerect, vector<cv::Point2f> *pts) {
+float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts) {
     cv::Rect large_face_rect;
 
     FLOG("align frame_image: %d(H) %d(W) %d(C)", frame_image.size().height, frame_image.size().width, frame_image.channels());
     //cv::imwrite("/mnt/sdcard/fosafer/align_1.jpg",frame_image);
 
-    if(has_last) {
-        large_face_rect = last_rect;
-    } else {
 
-        double cx, cy, width;
-        cv::Point2f lt(frame_image.size().width, frame_image.size().height), rb(0, 0);
-        RectRegionAdjust(cx, cy, width, facerect);
-        width *= 1.3;
-        FLOG("align large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
-        large_face_rect.width = large_face_rect.height = width;
-        large_face_rect.x = cx - width / 2;
-        large_face_rect.y = cy - width / 2;
-        large_face_rect = strip_rect(frame_image.size(), large_face_rect);
-        FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
+    double cx, cy, width;
+    //cv::Point2f lt(frame_image.size().width, frame_image.size().height), rb(0, 0);
+    RectRegionAdjust(cx, cy, width, face_rect);
+    width *= 1.3;
+    FLOG("align large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
+    large_face_rect.width = large_face_rect.height = width;
+    large_face_rect.x = cx - width / 2;
+    large_face_rect.y = cy - width / 2;
+    large_face_rect = strip_rect(frame_image.size(), large_face_rect);
+    FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
 
-    }
 
     FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
     cv::Rect image_rect = cv::Rect(0, 0, frame_image.size().width, frame_image.size().height);
@@ -163,7 +159,7 @@ float FOSAFER_face_align::update(cv::Mat const &frame_image, cv::Rect facerect, 
     cv::Point2f landmark_center = lt + rb;
     landmark_center.x /= 2.0f;
     landmark_center.y /= 2.0f;
-    double width = std::max(rb.x - lt.x + 1, rb.y - lt.y + 1);
+    width = std::max(rb.x - lt.x + 1, rb.y - lt.y + 1);
     landmark_border_rect = strip_rect(frame_image.size(), cv::Rect(landmark_center.x - width / 2, landmark_center.y - width / 2, width, width));
     width *= 1.35;
     //cv::imwrite("/mnt/sdcard/fosafer/landmark_border_rect.jpg",frame_image(landmark_border_rect));
@@ -219,13 +215,27 @@ static void remap_pts(vector<cv::Point2f> const &pts, vector<cv::Point2f> *res) 
     }
 }
 
+//FOSAFER_alive_detection::FOSAFER_alive_detection(const char *model_dir):align_(model_dir) {
 
-FOSAFER_alive_detection::FOSAFER_alive_detection(const char *model_dir):align_(model_dir) {
-
+FOSAFER_alive_detection::FOSAFER_alive_detection(){
+    align_ = new FOSAFER_face_align();
+    this->open_alive_detection_ = false;
+    this->last_score_ = 0;
+    this->asum_area_buffer_.resize(this->history_len_, 0.0);
+    this->filled_.resize(this->history_len_, false);
+    this->asum_nose_buffer_.resize(this->history_len_);
+    this->asum_mouth_buffer_.resize(this->history_len_);
+    this->cur_asum_idx_ = 0;
+    this->mouth_points_.resize(12);
+    this->cur_frame_idx_ = 0;
+    this->last_face_rect_.x = -1;
 }
 
 FOSAFER_alive_detection::~FOSAFER_alive_detection() {
-
+    if(align_) {
+        delete align_;
+        align_ = nullptr;
+    }
 }
 
 
@@ -310,7 +320,7 @@ bool compareVector(const FaceRect &a, const FaceRect &b){
     return a.w * a.h > b.w * b.h;
 }
 
-int FOSAFER_alive_detection::update(cv::Mat const &frame_image, cv::Rect *face_rect, std::vector<cv::Point2f> *pts,
+int FOSAFER_alive_detection::update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts,
 Info *info, float minPercent, float maxPercent) 
 {
     #define MIN_MOUTH_AREA_CHANGE 4500
@@ -344,55 +354,16 @@ Info *info, float minPercent, float maxPercent)
     use_landmark = true;
     FLOG("detectAlign USE LANDMARK");
     double start_time = now_ms();
-    last_score_ = align_.update(frame_image, last_face_rect_, &pts_);
+    last_score_ = align_->update(frame_image, face_rect, &pts_);
     FLOG("detectAlign landmark face: %.02ff ms !", now_ms() - start_time);
     if(last_score_ < 0.6) {
         FLOG("detectAlign NO FACE LANDMARK %f.", last_score_);
         return FACE_ALIVE_UNDETECTED;
     }
-    //}
-    //else
-    // {
-    //     FLOG("detectAlign USE SSD");
-    //     //warn double facedet_start_time = now_ms();
-    //     fosaferdetectface_ssd(frame_image, faces);
-    
-    //     FLOG("detectAlign face num: %d", faces.size());
-    //     last_score_ = 0;
-
-    //     if(faces.size() == 0) {
-    //         //info->face_status |= FACE_STATUS_NOFACE;
-    //         FLOG("NO FACE DETECTED");
-    //         return FACE_ALIVE_UNDETECTED;
-    //     }
-
-    //     if(clv_res){
-    //         return FACE_ALIVE_UNDETECTED;
-    //     }
-
-    //     #ifndef KC4271HUAWEI
-    //         if(faces.size() > 1) 
-    //         {
-    //             return FACE_ALIVE_MULTIFACE;
-    //         }
-    //     #endif
-
-    //     align_.clear_state();
-    //     last_score_ = 1.0;
-    //     last_face_rect_ = getrect(faces[0]);
-    //     last_score_ = align_.update(frame_image, last_face_rect_, &pts_);
-    // }    
-    
 
     if(!__CLV__()) {
         return FACE_ALIVE_UNDETECTED;
     }
-
-    if(face_rect) {
-        *face_rect = use_landmark ? align_.get_rect() : last_face_rect_;
-        *face_rect = strip_rect(frame_image.size(), *face_rect);
-    }
-
 
     if(pts)
         *pts = pts_;
@@ -418,11 +389,11 @@ Info *info, float minPercent, float maxPercent)
 #endif
     float mid_degree = check_mid(pts_);
     float tilt_degree = check_tilt(pts_);
-    float face_percent = align_.get_rect().width / float(frame_image.size().width);
+    float face_percent = align_->get_rect().width / float(frame_image.size().width);
 
-    FLOG("align_ rect: %d %d %d %d", align_.get_rect().x, align_.get_rect().y, align_.get_rect().width, align_.get_rect().height);
+    FLOG("align_ rect: %d %d %d %d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
 
-    float illu_status = eval_face_quality(frame_image(strip_rect(frame_image.size(), align_.get_rect())));
+    float illu_status = eval_face_quality(frame_image(strip_rect(frame_image.size(), align_->get_rect())));
 
     FLOG("mid_degree: %f tilt_degree: %f face_percent: %f illu %f", 
         mid_degree, tilt_degree, face_percent, illu_status);
@@ -430,11 +401,11 @@ Info *info, float minPercent, float maxPercent)
         info->face_status = 0;
         if(face_percent < minPercent) {
             //info->face_status |= FACE_STATUS_SMALL;
-            FLOG("too small, X:%d Y:%d W:%d H:%d", align_.get_rect().x, align_.get_rect().y, align_.get_rect().width, align_.get_rect().height);
+            FLOG("too small, X:%d Y:%d W:%d H:%d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
         } 
         if(face_percent > maxPercent) {
             //info->face_status |= FACE_STATUS_LARGE;
-            FLOG("too large, X:%d Y:%d W:%d H:%d", align_.get_rect().x, align_.get_rect().y, align_.get_rect().width, align_.get_rect().height);
+            FLOG("too large, X:%d Y:%d W:%d H:%d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
         } 
         if(illu_status < MIN_LIGHT) {
             //info->face_status |= FACE_STATUS_DARK;

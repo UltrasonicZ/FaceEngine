@@ -1,6 +1,53 @@
 #include "facerecg_interface.h"
+
+#include "ncnnssd.h"
+#include "facealign.h"
+#include "rgbalive.h"
+
 #include <algorithm>
 #include <vector>
+
+#include "utils.h"
+
+struct FaceBox {
+    float alive_score;
+    float x1;
+    float y1;
+    float x2;
+    float y2;
+};
+
+class CFosaferFaceRecogBackend {
+public:
+    CFosaferFaceRecogBackend();
+    ~CFosaferFaceRecogBackend();
+    
+    bool init();
+    int detect(Image* image_input, int rotateCW);
+    
+    void rotate_image_90n(cv::Mat &src, cv::Mat &dst, int angle);
+    cv::Mat ResizeImage(cv::Mat image, int maxDimSize, double *scale_used);
+
+private:
+    void detect_brightness(cv::Mat input_img, float& cast, float& da);
+    double calculate_average_gray_value(const cv::Mat& image_gray, const ssdFaceRect &face);
+    double cal_variance(const cv::Mat& image_gray, const ssdFaceRect &face);
+    bool PoseEstimation2(const std::vector<cv::Point2f> &pts, 
+        float *pose_pitch, 
+        float *pose_yaw, 
+        float *pose_roll);
+    cv::Rect CalculateBox(FaceBox& box, float scale_, int w, int h);
+
+
+private:
+    double image_max_dim_ = 600;
+    double scale_factor_ = 1;
+
+    ncnnssd *ncnnssd_;
+    FOSAFER_alive_detection *alive_detector_;
+    RGBFacefas *rgbalive_;
+};
+
 
 const double threshold_dark = 100.0;
 const double threshold_brightness = 220.0;
@@ -25,14 +72,6 @@ const double face_resol_high = 120.0;
 
 const double face_paper_thresh = 40.0;
 
-struct FaceBox {
-    float alive_score;
-    float x1;
-    float y1;
-    float x2;
-    float y2;
-};
-
 CFosaferFaceRecogBackend::CFosaferFaceRecogBackend() {
     
 }
@@ -40,18 +79,145 @@ CFosaferFaceRecogBackend::CFosaferFaceRecogBackend() {
 CFosaferFaceRecogBackend::~CFosaferFaceRecogBackend(){
     if (ncnnssd_) {
         delete ncnnssd_;
-        ncnnssd_ = NULL;
+        ncnnssd_ = nullptr;
+    }
+    if (alive_detector_) {
+        delete alive_detector_;
+        alive_detector_ = nullptr;
+    }
+    if (rgbalive_) {
+        delete rgbalive_;
+        rgbalive_ = nullptr;
     }
 }
 
 bool CFosaferFaceRecogBackend::init() {
     ncnnssd_ = new ncnnssd();
+    alive_detector_ = new FOSAFER_alive_detection();
+    rgbalive_ = new RGBFacefas();
     return true;
 }
 
 bool compareVector(const ssdFaceRect &a, const ssdFaceRect &b){
     return a.w * a.h > b.w * b.h;
 }
+
+bool CFosaferFaceRecogBackend::PoseEstimation2(const std::vector<cv::Point2f> &pts, float *pose_pitch, float *pose_yaw, float *pose_roll) {
+    if(pts.empty()) return false;
+    float head_pose_array[15][3] = {
+        {0.139791, 27.4028, 7.02636},
+        {-2.48207, 9.59384, 6.03758},
+        {1.27402, 10.4795, 6.20801},
+        {1.17406, 29.1886, 1.67768},
+        {0.306761, -103.832, 5.66238},
+        {4.78663, 17.8726, -15.3623},
+        {-5.20016, 9.29488, -11.2495},
+        {-25.1704, 10.8649, -29.4877},
+        {-5.62572, 9.0871, -12.0982},
+        {-5.19707, -8.25251, 13.3965},
+        {-23.6643, -13.1348, 29.4322},
+        {67.239, 0.666896, 1.84304},
+        {-2.83223, 4.56333, -15.885},
+        {-4.74948, -3.79454, 12.7986},
+        {-16.1, 1.47175, 4.03941}
+    };
+    float tmp[15]  = {0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,1.0f};
+    float ret[3] = {0,0,0};
+
+    int samplePdim = 7;
+    float miny = 10000000000.0f;
+    float maxy = 0.0f;
+    float sumx = 0.0f;
+    float sumy = 0.0f;
+    int index_list[] = { 16, 20, 28, 24, 32, 43, 49 };
+
+    float minx = 10000000000.0f;
+    float maxx = 0.0f;
+    //找最大最小y
+    for (int idx = 0; idx < samplePdim; idx++) {
+        float y = pts[index_list[idx]].y;
+        float x = pts[index_list[idx]].x;
+        sumx += x;
+        sumy += y;
+        if (miny > y)
+            miny = y;
+        if (maxy < y)
+            maxy = y;
+
+        if (minx > x)
+            minx = x;
+        if (maxx < x)
+            maxx = x;
+    }
+    float distx = maxx - minx;
+    float disty = maxy - miny;
+    //人脸中心点
+    sumx = sumx / samplePdim;
+    sumy = sumy / samplePdim;
+    
+    for (int i = 0; i < samplePdim; i++) {
+        tmp[i] = (pts[index_list[i]].x - sumx) / distx;
+        tmp[i+samplePdim] = (pts[index_list[i]].y - sumy) / disty;
+    }
+
+    for(int j = 0; j < 3; j++) {
+        float s = 0;
+        for(int k = 0; k < 15; k++) {
+            s = s + tmp[k] * head_pose_array[k][j];
+        }
+        ret[j] = s;
+    }
+
+    *pose_pitch = ret[0];
+    *pose_yaw = ret[1];
+    *pose_roll = ret[2];
+    return true;
+}
+
+cv::Rect CFosaferFaceRecogBackend::CalculateBox(FaceBox& box, float scale_, int w, int h) {
+    int x = static_cast<int>(box.x1);
+    int y = static_cast<int>(box.y1);
+    int box_width = static_cast<int>(box.x2 - box.x1 + 1);
+    int box_height = static_cast<int>(box.y2 - box.y1 + 1);
+
+    float scale = std::min(scale_, std::min((w - 1) / (float)box_width, (h - 1) / (float)box_height));
+    std::cout << "real scale:" << scale << std::endl;
+    int box_center_x = box_width / 2 + x;
+    int box_center_y = box_height / 2 + y;
+
+    int new_width = static_cast<int>(box_width * scale);
+    int new_height = static_cast<int>(box_height * scale);
+
+    int left_top_x = box_center_x - new_width / 2;
+    int left_top_y = box_center_y - new_height / 2;
+    int right_bottom_x = box_center_x + new_width / 2;
+    int right_bottom_y = box_center_y + new_height / 2;
+
+    if (left_top_x < 0) {
+        right_bottom_x -= left_top_x;
+        left_top_x = 0;
+    }
+
+    if (left_top_y < 0) {
+        right_bottom_y -= left_top_y;
+        left_top_y = 0;
+    }
+
+    if (right_bottom_x >= w) {
+        int s = right_bottom_x - w + 1;
+        left_top_x -= s;
+        right_bottom_x -= s;
+    }
+
+    if (right_bottom_y >= h) {
+        int s = right_bottom_y - h + 1;
+        left_top_y -= s;
+        right_bottom_y -= s;
+    }
+
+    return cv::Rect(left_top_x, left_top_y, new_width, new_height);
+}
+
 
 void CFosaferFaceRecogBackend::detect_brightness(cv::Mat input_img, float& cast, float& da){
     cv::Mat gray_image;
@@ -96,12 +262,8 @@ double CFosaferFaceRecogBackend::calculate_average_gray_value(const cv::Mat& ima
     return average_gray_value;
 }
 double CFosaferFaceRecogBackend::cal_variance(const cv::Mat& image_color, const ssdFaceRect &face) {
-    cv::Scalar mean;
-    mean = cv::mean(image_color);
-    
     // 图像均值 和 标准方差
     cv::Mat meanMat, stdMat;
- 
     cv::meanStdDev(image_color, meanMat, stdMat);
  
     // std::cout << "图像均值 和 标准方差" << std::endl;
@@ -173,7 +335,20 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
         image_input->face_rect[i][3] = faces_success.at(i).h * scale_factor_;
         image_input->face_rect[i][4] = faces_success.at(i).confidence;
     }
+    
+    cv::Rect image_small_face_rect;
+    image_small_face_rect.x = faces_success.at(0).x;
+    image_small_face_rect.y = faces_success.at(0).y;
+    image_small_face_rect.width = faces_success.at(0).w;
+    image_small_face_rect.height = faces_success.at(0).h;
 
+    cv::Rect large_face_rect;
+    large_face_rect.x = image_input->face_rect[0][0];
+    large_face_rect.y = image_input->face_rect[0][1];
+    large_face_rect.width = image_input->face_rect[0][2];
+    large_face_rect.height = image_input->face_rect[0][3];
+
+    cv::rectangle(image_color, large_face_rect, cv::Scalar(0, 255, 0), 2);
     //cv::imwrite("gray.jpg", gray_image_small);
     //计算均方差
     double aver_variance = cal_variance(image_color_small, faces_success[0]);
@@ -217,9 +392,91 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     }
 
     //关键点检测
-    //ret = alive_detector_.update(image_color_small, &big_rect, &pts, info, m_min_percent, m_max_percent);
-    
+    Info *info;
+    std::vector<cv::Point2f> pts;
+    float m_min_percent = 0.0;
+    float m_max_percent = 100.0;
+    ret = alive_detector_->update(image_color_small, image_small_face_rect, &pts, info, m_min_percent, m_max_percent);
 
+    int count = 0;
+    std::vector<cv::Point2f> ori_points;
+    for(auto point : pts) {
+        cv::Point2f ori_point;
+        ori_point.x = point.x * scale_factor_;
+        ori_point.y = point.y * scale_factor_;
+
+        ori_points.push_back(ori_point);
+
+        std::string label = std::to_string(count);
+        cv::Point2f textPos(ori_point.x, ori_point.y);
+        int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+        double fontScale = 0.5;
+        cv::Scalar textColor(0, 0, 255);  // 以BGR格式指定颜色，这里为红色
+        int fontThickness = 1;
+
+        cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
+        count++;
+    }
+
+    //计算两眼之间的距离
+    double dist = DistanceTo(ori_points[80], ori_points[81]);
+    if(dist >= 60 && dist < 90) {
+        image_input->eye_dist = 0;
+    }
+    else if(dist >= 90) {
+        image_input->eye_dist = 1;
+    }
+    std::cout << "eye distance:" << dist << std::endl;
+
+    float pitch, yaw, roll;        
+    //bool PoseEstimation2(std::vector<cv::Point> &pts, float *pose_pitch, float *pose_yaw, float *pose_roll) {
+    ret = PoseEstimation2(pts, &pitch, &yaw, &roll);
+
+    std::cout << "pitch:" << pitch << std::endl;
+    std::cout << "yaw:" << yaw << std::endl;
+    std::cout << "roll:" << roll << std::endl;
+    
+    // 活体检测
+    FaceBox box;
+    box.x1 = image_input->face_rect[0][0];
+    box.y1 = image_input->face_rect[0][1];
+    box.x2 = image_input->face_rect[0][0] + image_input->face_rect[0][2];
+    box.y2 = image_input->face_rect[0][1] + image_input->face_rect[0][3];
+
+    float scale1 = 2.7;
+    float scale2 = 4.0;
+    
+    std::cout << "alive1" << std::endl;
+    cv::Rect rect27 = CalculateBox(box, scale1, image_color.cols, image_color.rows);
+    std::cout << rect27.x << std::endl;
+    std::cout << rect27.y << std::endl;
+    std::cout << rect27.width << std::endl;
+    std::cout << rect27.height << std::endl;
+    
+    cv::Rect rect40 = CalculateBox(box, scale2, image_color.cols, image_color.rows);
+    std::cout << rect40.x << std::endl;
+    std::cout << rect40.y << std::endl;
+    std::cout << rect40.width << std::endl;
+    std::cout << rect40.height << std::endl;
+    
+    std::cout << "alive2" << std::endl;
+    
+    cv::Mat roi27 = image_color(rect27);
+    cv::Mat roi40 = image_color(rect40);
+    cv::imwrite("result_roi27.jpg", roi27);
+    cv::imwrite("result_roi40.jpg", roi40);
+    
+    std::cout << "alive3" << std::endl;
+    
+    // image_input->alive_score = rgbalive->detect(roi27.data, 80, 80, roi40.data, 80, 80);
+    image_input->alive_score = rgbalive_->detect(roi27.data, roi27.cols, roi27.rows, roi40.data, roi40.cols, roi40.rows);
+
+    std::cout << "alive_score:" << image_input->alive_score << std::endl;
+
+    cv::imwrite("result.jpg", image_color);
+    cv::imshow("result", image_color);
+	cv::waitKey(0);
+    return 0;
 }
 
 void CFosaferFaceRecogBackend::rotate_image_90n(cv::Mat &src, cv::Mat &dst, int angle)
