@@ -60,6 +60,12 @@ extern "C" {
         int brightness;
         int resolution;
         int eye_dist;
+        float pitch;
+        float yaw;
+        float roll;
+        int detect_lefteye;
+        int detect_righteye;
+        int detect_mouth;
     } Image;
 
     typedef void* FACERECOG_ENGINE_HANDLE;

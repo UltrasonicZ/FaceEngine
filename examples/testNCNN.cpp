@@ -4,6 +4,7 @@
 
 int main() {
     FACERECOG_ENGINE_HANDLE engine = FOSAFER_FaceRECOG_Initialize();
+    //cv::Mat test_image = cv::imread("../data/images/foreigner.png");
     cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
     
     if(test_image.data == nullptr)
@@ -41,9 +42,16 @@ int main() {
         //cv::rectangle(test_image, rect, cv::Scalar(0, 255, 0), 2);
     }       
 
+    cv::Rect large_face_rect;
+    large_face_rect.x = img->face_rect[0][0];
+    large_face_rect.y = img->face_rect[0][1];
+    large_face_rect.width = img->face_rect[0][2];
+    large_face_rect.height = img->face_rect[0][3];
+
+    cv::rectangle(test_image, large_face_rect, cv::Scalar(0, 255, 0), 2);
     //cv::imwrite("../images/result.jpg", test_image);
-	//cv::imshow("result", test_image);
-	//cv::waitKey(0);
+	cv::imshow("result", test_image);
+	cv::waitKey(0);
 	
 	ret = FOSAFER_FaceRECOG_Release(engine);
 

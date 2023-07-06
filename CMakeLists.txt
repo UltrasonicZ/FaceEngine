@@ -42,6 +42,9 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/ncnn_feature_extractor.cpp
     ${CMAKE_SOURCE_DIR}/src/facealign.cpp
     ${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
+    ${CMAKE_SOURCE_DIR}/src/eye_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/mouth_exist.cpp
+    
     ${CMAKE_SOURCE_DIR}/src/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
     )

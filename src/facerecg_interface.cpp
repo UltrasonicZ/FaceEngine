@@ -4,6 +4,11 @@
 #include "facealign.h"
 #include "rgbalive.h"
 
+#include "detectstrategy.h"
+#include "eye_exist.h"
+#include "mouth_exist.h"
+#include "detectcontext.h"
+
 #include <algorithm>
 #include <vector>
 
@@ -11,6 +16,13 @@
 
 struct FaceBox {
     float alive_score;
+    float x1;
+    float y1;
+    float x2;
+    float y2;
+};
+
+struct Box {
     float x1;
     float y1;
     float x2;
@@ -37,7 +49,12 @@ private:
         float *pose_yaw, 
         float *pose_roll);
     cv::Rect CalculateBox(FaceBox& box, float scale_, int w, int h);
+    // cv::Rect CalLeftEyeRect(const std::vector<cv::Point> &pts);
+    // cv::Rect CalRightEyeRect(const std::vector<cv::Point> &pts);
+    cv::Rect CalRect(const std::vector<cv::Point> &pts, int begin, int end);
 
+    cv::Rect EnlargeRect(const cv::Rect& rect, float width_scale_, float height_scale_, int w, int h);
+    //cv::Rect EnlargeMouthRect(Box& box, float scale_, int w, int h);
 
 private:
     double image_max_dim_ = 600;
@@ -216,8 +233,64 @@ cv::Rect CFosaferFaceRecogBackend::CalculateBox(FaceBox& box, float scale_, int 
     }
 
     return cv::Rect(left_top_x, left_top_y, new_width, new_height);
+}   
+
+cv::Rect CFosaferFaceRecogBackend::CalRect(const std::vector<cv::Point> &pts, int begin, int end) {
+    int lefttop_x = 1000000000, lefttop_y = 1000000000;
+    int rightbottom_x = 0, rightbottom_y = 0; 
+
+    for(int i = begin; i <= end; ++i) {
+        lefttop_x = std::min(pts[i].x, lefttop_x);
+        lefttop_y = std::min(pts[i].y, lefttop_y);
+        rightbottom_x = std::max(pts[i].x, rightbottom_x);
+        rightbottom_y = std::max(pts[i].y, rightbottom_y);
+    }
+    int width = std::abs(rightbottom_x - lefttop_x);
+    int height = std::abs(rightbottom_y - lefttop_y);
+    return cv::Rect(lefttop_x, lefttop_y, width, height); 
 }
 
+cv::Rect CFosaferFaceRecogBackend::EnlargeRect(const cv::Rect& rect, float width_scale_, float height_scale_, int w, int h) {
+    int x = rect.x;
+    int y = rect.y;
+    int box_width = rect.width;
+    int box_height = rect.height;
+
+    int box_center_x = box_width / 2 + x;
+    int box_center_y = box_height / 2 + y;
+
+    int new_width = static_cast<int>(box_width * width_scale_);
+    int new_height = static_cast<int>(box_height * height_scale_);
+
+    int left_top_x = box_center_x - new_width / 2;
+    int left_top_y = box_center_y - new_height / 2;
+    int right_bottom_x = box_center_x + new_width / 2;
+    int right_bottom_y = box_center_y + new_height / 2;
+
+    if (left_top_x < 0) {
+        right_bottom_x -= left_top_x;
+        left_top_x = 0;
+    }
+
+    if (left_top_y < 0) {
+        right_bottom_y -= left_top_y;
+        left_top_y = 0;
+    }
+
+    if (right_bottom_x >= w) {
+        int s = right_bottom_x - w + 1;
+        left_top_x -= s;
+        right_bottom_x -= s;
+    }
+
+    if (right_bottom_y >= h) {
+        int s = right_bottom_y - h + 1;
+        left_top_y -= s;
+        right_bottom_y -= s;
+    }
+
+    return cv::Rect(left_top_x, left_top_y, new_width, new_height);
+}
 
 void CFosaferFaceRecogBackend::detect_brightness(cv::Mat input_img, float& cast, float& da){
     cv::Mat gray_image;
@@ -342,13 +415,6 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     image_small_face_rect.width = faces_success.at(0).w;
     image_small_face_rect.height = faces_success.at(0).h;
 
-    cv::Rect large_face_rect;
-    large_face_rect.x = image_input->face_rect[0][0];
-    large_face_rect.y = image_input->face_rect[0][1];
-    large_face_rect.width = image_input->face_rect[0][2];
-    large_face_rect.height = image_input->face_rect[0][3];
-
-    cv::rectangle(image_color, large_face_rect, cv::Scalar(0, 255, 0), 2);
     //cv::imwrite("gray.jpg", gray_image_small);
     //计算均方差
     double aver_variance = cal_variance(image_color_small, faces_success[0]);
@@ -380,6 +446,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     // [high, ~) => HIGH
     float face_width = image_input->face_rect[0][2];
     float face_height = image_input->face_rect[0][3];
+
     float min_widhei = std::min(face_width, face_height);
     if (min_widhei < face_resol_low){
         image_input->resolution = 0;
@@ -399,25 +466,25 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     ret = alive_detector_->update(image_color_small, image_small_face_rect, &pts, info, m_min_percent, m_max_percent);
 
     int count = 0;
-    std::vector<cv::Point2f> ori_points;
-    for(auto point : pts) {
-        cv::Point2f ori_point;
-        ori_point.x = point.x * scale_factor_;
-        ori_point.y = point.y * scale_factor_;
+    std::vector<cv::Point> ori_points;
+    for(auto pt : pts) {
+        cv::Point point;
+        point.x = static_cast<int>(pt.x * scale_factor_);
+        point.y = static_cast<int>(pt.y * scale_factor_);
 
-        ori_points.push_back(ori_point);
+        ori_points.push_back(point);
 
         std::string label = std::to_string(count);
-        cv::Point2f textPos(ori_point.x, ori_point.y);
+        cv::Point textPos(point.x, point.y);
         int fontFace = cv::FONT_HERSHEY_SIMPLEX;
         double fontScale = 0.5;
         cv::Scalar textColor(0, 0, 255);  // 以BGR格式指定颜色，这里为红色
         int fontThickness = 1;
 
-        cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
+        //cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
         count++;
     }
-
+    
     //计算两眼之间的距离
     double dist = DistanceTo(ori_points[80], ori_points[81]);
     if(dist >= 60 && dist < 90) {
@@ -431,7 +498,10 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     float pitch, yaw, roll;        
     //bool PoseEstimation2(std::vector<cv::Point> &pts, float *pose_pitch, float *pose_yaw, float *pose_roll) {
     ret = PoseEstimation2(pts, &pitch, &yaw, &roll);
-
+    image_input->pitch = pitch;
+    image_input->yaw = yaw;
+    image_input->roll = roll;
+        
     std::cout << "pitch:" << pitch << std::endl;
     std::cout << "yaw:" << yaw << std::endl;
     std::cout << "roll:" << roll << std::endl;
@@ -446,36 +516,59 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     float scale1 = 2.7;
     float scale2 = 4.0;
     
-    std::cout << "alive1" << std::endl;
-    cv::Rect rect27 = CalculateBox(box, scale1, image_color.cols, image_color.rows);
-    std::cout << rect27.x << std::endl;
-    std::cout << rect27.y << std::endl;
-    std::cout << rect27.width << std::endl;
-    std::cout << rect27.height << std::endl;
-    
+    cv::Rect rect27 = CalculateBox(box, scale1, image_color.cols, image_color.rows);    
     cv::Rect rect40 = CalculateBox(box, scale2, image_color.cols, image_color.rows);
-    std::cout << rect40.x << std::endl;
-    std::cout << rect40.y << std::endl;
-    std::cout << rect40.width << std::endl;
-    std::cout << rect40.height << std::endl;
-    
-    std::cout << "alive2" << std::endl;
-    
+
     cv::Mat roi27 = image_color(rect27);
     cv::Mat roi40 = image_color(rect40);
-    cv::imwrite("result_roi27.jpg", roi27);
-    cv::imwrite("result_roi40.jpg", roi40);
     
-    std::cout << "alive3" << std::endl;
-    
-    // image_input->alive_score = rgbalive->detect(roi27.data, 80, 80, roi40.data, 80, 80);
     image_input->alive_score = rgbalive_->detect(roi27.data, roi27.cols, roi27.rows, roi40.data, roi40.cols, roi40.rows);
 
     std::cout << "alive_score:" << image_input->alive_score << std::endl;
 
-    cv::imwrite("result.jpg", image_color);
-    cv::imshow("result", image_color);
-	cv::waitKey(0);
+    //计算左眼的区域    
+    //计算右眼的区域
+    //计算嘴巴的区域
+    cv::Rect rect_lefteye = CalRect(ori_points, 24, 31);
+    cv::Rect rect_righteye = CalRect(ori_points, 16, 23);
+    cv::Rect rect_mouth = CalRect(ori_points, 43, 60);
+    
+    const float height_scale_eye = 4;
+    const float width_scale_eye = 2;
+    
+    const float height_scale_mouth = 2.5;
+    const float width_scale_mouth = 2;
+
+    rect_lefteye = EnlargeRect(rect_lefteye, width_scale_eye, height_scale_eye, image_color.cols, image_color.rows);
+    rect_righteye = EnlargeRect(rect_righteye, width_scale_eye, height_scale_eye, image_color.cols, image_color.rows);
+    rect_mouth = EnlargeRect(rect_mouth, width_scale_mouth, height_scale_mouth, image_color.cols, image_color.rows);
+
+    cv::Mat image_lefteye = image_color(rect_lefteye);
+    cv::Mat image_righteye = image_color(rect_righteye);
+    cv::Mat image_mouth = image_color(rect_mouth);
+    
+    cv::imwrite("lefteye.jpg", image_lefteye);
+    cv::imwrite("righteye.jpg", image_righteye);
+    cv::imwrite("mouth.jpg", image_mouth);
+        
+    //分别检测有无遮挡
+    std::shared_ptr<EyeExist> eye_detect = std::make_shared<EyeExist>();
+    std::shared_ptr<MouthExist> mouth_detect = std::make_shared<MouthExist>();
+    
+    //左眼
+    std::shared_ptr<DetectContext> context = std::make_shared<DetectContext>(eye_detect.get());
+    int detect_lefteye = context->detect(image_lefteye.data, image_lefteye.cols, image_lefteye.rows);
+    image_input->detect_lefteye = detect_lefteye;
+    std::cout << "detect_lefteye:" << detect_lefteye << std::endl;
+    //右眼
+    int detect_righteye = context->detect(image_righteye.data, image_righteye.cols, image_righteye.rows);
+    image_input->detect_righteye = detect_righteye;
+    std::cout << "detect_righteye:" << detect_righteye << std::endl;
+    //嘴巴
+    context->setStrategy(mouth_detect.get());
+    int detect_mouth = context->detect(image_mouth.data, image_mouth.cols, image_mouth.rows);
+    image_input->detect_mouth = detect_mouth;
+    std::cout << "detect_mouth:" << detect_mouth << std::endl;
     return 0;
 }
 
