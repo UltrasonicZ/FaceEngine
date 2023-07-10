@@ -66,6 +66,8 @@ extern "C" {
         int detect_lefteye;
         int detect_righteye;
         int detect_mouth;
+        float face_percent;
+        bool isNearEdge;
     } Image;
 
     typedef void* FACERECOG_ENGINE_HANDLE;

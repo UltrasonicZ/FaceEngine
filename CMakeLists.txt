@@ -39,8 +39,7 @@ set(SOURCE_LIST ${CMAKE_SOURCE_DIR}/src/facerecg_interface.cpp)
 
 list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/ncnnssd.cpp
-    ${CMAKE_SOURCE_DIR}/src/ncnn_feature_extractor.cpp
-    ${CMAKE_SOURCE_DIR}/src/facealign.cpp
+    ${CMAKE_SOURCE_DIR}/src/face_alignment.cpp
     ${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
     ${CMAKE_SOURCE_DIR}/src/eye_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/mouth_exist.cpp
@@ -63,10 +62,19 @@ target_link_libraries(${TARGET}
     ncnn
     )
 
-add_executable(testGZ 
-    ${CMAKE_SOURCE_DIR}/examples/testNCNN.cpp
-    ${SOURCE_LIST}
-    )
+option(CAMERA "Enable camera" OFF)
+if (CAMERA)
+    message("Camera is Open")
+    add_executable(testGZ 
+        ${CMAKE_SOURCE_DIR}/examples/testCamera.cpp
+        ${SOURCE_LIST}
+        )
+else()
+    add_executable(testGZ 
+        ${CMAKE_SOURCE_DIR}/examples/testNCNN.cpp
+        ${SOURCE_LIST}
+        )
+endif()
 
 target_link_libraries(testGZ 
     ${OpenCV_LIBS}

@@ -1,21 +1,20 @@
 #ifndef __FOSAFER_FACE_ALIGN__
 #define __FOSAFER_FACE_ALIGN__
 
-#include "ncnn_feature_extractor.h"
-
 #include <vector>
 #include <algorithm>
 #include <cstdio>
 #include <numeric>
-#include <vector>
+#include <string>
+
+#include <net.h>
+#include<opencv2/opencv.hpp>
 
 #define FACE_ALIVE_DETECTED_AND_ALIVE 1
 #define FACE_ALIVE_DETECTED 0
 #define FACE_ALIVE_DETECTED_AND_FAKE -1
 #define FACE_ALIVE_UNDETECTED -2
 #define FACE_ALIVE_MULTIFACE -3
-
-class CNCNNFeatureExtractor2;
 
 #ifndef FACERECT_STRUCT
 #define FACERECT_STRUCT
@@ -77,6 +76,21 @@ typedef struct _Info
 	float debug[3];
 } Info;
 
+
+class CNCNNFeatureExtractor {
+public:
+	CNCNNFeatureExtractor();
+	~CNCNNFeatureExtractor();
+
+	float ExtractFeature(cv::Mat const & image, std::vector<float> &ret);
+	void  transformPts(std::vector<float> &ret2, std::vector<float> &ret);
+
+private:
+	ncnn::Net *net_;
+	std::string str_landmark_ncnn_proto_bin_;
+    std::string str_landmark_ncnn_weights_;
+};
+
 class FOSAFER_face_align {
 public:
     //FOSAFER_face_align(const char *model_dir);
@@ -87,7 +101,7 @@ public:
     void clear_state();
     cv::Rect get_rect();
 private:
-    CNCNNFeatureExtractor2 *predictor;
+    CNCNNFeatureExtractor *predictor;
     
     float rect_scale;
     bool has_last;
@@ -104,9 +118,6 @@ public:
 	void init(FaceDetectParam param);
 	int update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts, Info *info, float minPercent, float maxPercent);
 	void set_status(int status);
-
-    // 
-    //void fosaferdetectface_ssd(cv::Mat const &frame_image, std::vector<FaceRect> &faces);
 
 private:
 #ifdef TEST_FUNCTION

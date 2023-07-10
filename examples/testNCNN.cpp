@@ -4,19 +4,10 @@
 
 int main() {
     FACERECOG_ENGINE_HANDLE engine = FOSAFER_FaceRECOG_Initialize();
-    //cv::Mat test_image = cv::imread("../data/images/foreigner.png");
-    cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
-    
-    if(test_image.data == nullptr)
-    {
-        std::cerr << "图片文件不存在" << std::endl;
-        return 0;
-    }
-    else {
-        std::cout << "image" << std::endl;//你会发现图片就是一个矩阵
-	}
-	
+    cv::Mat test_image = cv::imread("../data/images/foreigner.png");
+    // cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
 	Image* img = new Image;
+
 	img->data = test_image.data;
 	img->width = test_image.cols;
 	img->height = test_image.rows;
@@ -48,10 +39,10 @@ int main() {
     large_face_rect.width = img->face_rect[0][2];
     large_face_rect.height = img->face_rect[0][3];
 
-    cv::rectangle(test_image, large_face_rect, cv::Scalar(0, 255, 0), 2);
-    //cv::imwrite("../images/result.jpg", test_image);
-	cv::imshow("result", test_image);
-	cv::waitKey(0);
+    // cv::rectangle(test_image, large_face_rect, cv::Scalar(0, 255, 0), 2);
+    // cv::imwrite("../data/images/result.jpg", test_image);
+	// cv::imshow("result", test_image);
+	// cv::waitKey(0);
 	
 	ret = FOSAFER_FaceRECOG_Release(engine);
 
