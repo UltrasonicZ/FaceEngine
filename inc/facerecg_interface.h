@@ -56,6 +56,7 @@ extern "C" {
         int size;
         float face_rect[10][5];
         float alive_score;
+        float alive_score2;
         int face_num;
         int brightness;
         int resolution;

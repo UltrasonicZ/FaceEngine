@@ -41,6 +41,7 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/ncnnssd.cpp
     ${CMAKE_SOURCE_DIR}/src/face_alignment.cpp
     ${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
+    ${CMAKE_SOURCE_DIR}/src/fas.cpp
     ${CMAKE_SOURCE_DIR}/src/eye_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/mouth_exist.cpp
     

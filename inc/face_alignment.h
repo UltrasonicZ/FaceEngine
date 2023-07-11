@@ -8,7 +8,7 @@
 #include <string>
 
 #include <net.h>
-#include<opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 
 #define FACE_ALIVE_DETECTED_AND_ALIVE 1
 #define FACE_ALIVE_DETECTED 0
@@ -60,21 +60,21 @@ struct FaceDetectParam
 // 	int type; // type为1表示活体，为0表示非活体
 // } Image;
 
-typedef struct _Info
-{
-	float face_rect[4];
-	float left_eye[2];
-	float right_eye[2];
-	short land_mark[256];         // 预留128个关键点位置: (x[0],x[1]), (x[2],x[3]),....
-	short land_mark_count;        // 关键点数量，如果有10个关键点，land_mark中合法长度为20
-	short face_status;            // 人脸状态，用(face_status & FACE_STATUS_POSTURE_VALID) 查询对应标志位是否合法
-	int collected_image_count;    // 收集的人脸数量
-	int processed_image_count;    // 收集的进程图像
-	int alive_action;             // 0:眨眼 1:左摇 2:右摇 3:点头 4:张嘴
-	int error_action;             // 1表示动作错误
-	int multi_face;               // 1:多人脸 0:单人脸
-	float debug[3];
-} Info;
+// typedef struct _Info
+// {
+// 	float face_rect[4];
+// 	float left_eye[2];
+// 	float right_eye[2];
+// 	short land_mark[256];         // 预留128个关键点位置: (x[0],x[1]), (x[2],x[3]),....
+// 	short land_mark_count;        // 关键点数量，如果有10个关键点，land_mark中合法长度为20
+// 	short face_status;            // 人脸状态，用(face_status & FACE_STATUS_POSTURE_VALID) 查询对应标志位是否合法
+// 	int collected_image_count;    // 收集的人脸数量
+// 	int processed_image_count;    // 收集的进程图像
+// 	int alive_action;             // 0:眨眼 1:左摇 2:右摇 3:点头 4:张嘴
+// 	int error_action;             // 1表示动作错误
+// 	int multi_face;               // 1:多人脸 0:单人脸
+// 	float debug[3];
+// } Info;
 
 
 class CNCNNFeatureExtractor {
@@ -116,7 +116,7 @@ public:
 	~FOSAFER_alive_detection();
 
 	void init(FaceDetectParam param);
-	int update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts, Info *info, float minPercent, float maxPercent);
+	int update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts);
 	void set_status(int status);
 
 private:

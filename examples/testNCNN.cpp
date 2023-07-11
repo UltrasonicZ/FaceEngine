@@ -1,11 +1,11 @@
 #include "facerecg_interface.h"
 #include <iostream>
-#include<opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 
 int main() {
     FACERECOG_ENGINE_HANDLE engine = FOSAFER_FaceRECOG_Initialize();
-    cv::Mat test_image = cv::imread("../data/images/foreigner.png");
-    // cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
+    // cv::Mat test_image = cv::imread("../data/images/foreigner.png");
+    cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
 	Image* img = new Image;
 
 	img->data = test_image.data;

@@ -4,17 +4,6 @@
 #include "landmarks_ljw.mem.h"
 #include "tool.h"
 
-#ifndef _MSC_VER
-#include <sys/time.h>
-#endif
-
-// #if !USE_NCNN
-// extern char *model_fosafer_tracking_prototxt;
-// extern const unsigned int model_fosafer_tracking_prototxt_len;
-// extern char *model_fosafer_tracking_caffemodel;
-// extern const unsigned int model_fosafer_tracking_caffemodel_len;
-// #endif
-
 int clv_res = 0;
 
 inline cv::Rect getrect(FaceRect const &rect) {
@@ -245,23 +234,18 @@ void FOSAFER_face_align::RectRegionAdjust(double& center_x, double& center_y, do
 float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts) {
     cv::Rect large_face_rect;
 
-    FLOG("align frame_image: %d(H) %d(W) %d(C)", frame_image.size().height, frame_image.size().width, frame_image.channels());
-    //cv::imwrite("/mnt/sdcard/fosafer/align_1.jpg",frame_image);
-
-
-    double cx, cy, width;
-    //cv::Point2f lt(frame_image.size().width, frame_image.size().height), rb(0, 0);
-    RectRegionAdjust(cx, cy, width, face_rect);
+    double center_x, center_y, width;
+    RectRegionAdjust(center_x, center_y, width, face_rect);
     width *= 1.3;
-    FLOG("align large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
+    
     large_face_rect.width = large_face_rect.height = width;
-    large_face_rect.x = cx - width / 2;
-    large_face_rect.y = cy - width / 2;
+    large_face_rect.x = center_x - width / 2;
+    large_face_rect.y = center_y - width / 2;
     large_face_rect = strip_rect(frame_image.size(), large_face_rect);
-    FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
+    // FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
 
 
-    FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
+    // FLOG("align after large_face_rect: %d(X) %d(Y) %d(W) %d(H)", large_face_rect.x, large_face_rect.y, large_face_rect.width, large_face_rect.height);
     cv::Rect image_rect = cv::Rect(0, 0, frame_image.size().width, frame_image.size().height);
     cv::Rect inner_rect = get_intersect_rect(image_rect, large_face_rect);
     cv::Mat tmp1 = frame_image(inner_rect).clone();
@@ -274,9 +258,9 @@ float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &fac
 
     //cv::imwrite("/mnt/sdcard/fosafer/align_3.jpg",subimage);
     //cv::imwrite("/mnt/sdcard/fosafer/align_4.jpg",image);
-    FLOG("align inner_rect: %d(X) %d(Y) %d(W) %d(H)", inner_rect.x, inner_rect.y, inner_rect.width, inner_rect.height);
-    FLOG("align image_offset_rect: %d(X) %d(Y) %d(W) %d(H)", image_offset_rect.x, image_offset_rect.y, image_offset_rect.width, image_offset_rect.height);
-    FLOG("align subimage_rect: %d(X) %d(Y) %d(W) %d(H)", subimage_rect.x,  subimage_rect.y, subimage_rect.width, subimage_rect.height);
+    // FLOG("align inner_rect: %d(X) %d(Y) %d(W) %d(H)", inner_rect.x, inner_rect.y, inner_rect.width, inner_rect.height);
+    // FLOG("align image_offset_rect: %d(X) %d(Y) %d(W) %d(H)", image_offset_rect.x, image_offset_rect.y, image_offset_rect.width, image_offset_rect.height);
+    // FLOG("align subimage_rect: %d(X) %d(Y) %d(W) %d(H)", subimage_rect.x,  subimage_rect.y, subimage_rect.width, subimage_rect.height);
     int size_w = large_face_rect.width;
     int size_h = large_face_rect.width;
     vector<float> res;
@@ -292,7 +276,7 @@ float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &fac
 
     float score = predictor->ExtractFeature(image_gray, res);
     
-    FLOG("point timeX: %f", now_ms() - tms); 
+    // FLOG("point timeX: %f", now_ms() - tms); 
     pts->resize(res.size() / 2);
     for(int idx = 0; idx < res.size() / 2; idx++) {
         cv::Point2f p((int)res[idx * 2], (int)res[idx * 2 + 1]);
@@ -315,8 +299,8 @@ float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &fac
         rb.y = max(rb.y, (*pts)[idx].y);
     }
 
-    FLOG("align  82point rect  %f %f", lt.x,lt.y);
-    FLOG("align  82point rect  %f %f", rb.x,rb.y);
+    // FLOG("align  82point rect  %f %f", lt.x,lt.y);
+    // FLOG("align  82point rect  %f %f", rb.x,rb.y);
 
     cv::Point2f landmark_center = lt + rb;
     landmark_center.x /= 2.0f;
@@ -325,15 +309,15 @@ float FOSAFER_face_align::update(cv::Mat const &frame_image, const cv::Rect &fac
     landmark_border_rect = strip_rect(frame_image.size(), cv::Rect(landmark_center.x - width / 2, landmark_center.y - width / 2, width, width));
     width *= 1.35;
     //cv::imwrite("/mnt/sdcard/fosafer/landmark_border_rect.jpg",frame_image(landmark_border_rect));
-    FLOG("align  landmark_center %f %f", landmark_center.x, landmark_center.y);
-    FLOG("align  landmark_border_rect %d, %d, %d, %d", landmark_border_rect.x, landmark_border_rect.y, landmark_border_rect.width, landmark_border_rect.height);
+    // FLOG("align  landmark_center %f %f", landmark_center.x, landmark_center.y);
+    // FLOG("align  landmark_border_rect %d, %d, %d, %d", landmark_border_rect.x, landmark_border_rect.y, landmark_border_rect.width, landmark_border_rect.height);
 
     double half_width = width / 2;
     last_rect.x = landmark_center.x - half_width;
     last_rect.y = landmark_center.y - half_width;
     last_rect.width = width;
     last_rect.height = width;
-    FLOG("align last_rect %d, %d, %d, %d", last_rect.x, last_rect.y, last_rect.width, last_rect.height);
+    // FLOG("align last_rect %d, %d, %d, %d", last_rect.x, last_rect.y, last_rect.width, last_rect.height);
 
     if(clv_res) {
         return 0.0;
@@ -424,7 +408,7 @@ void FOSAFER_alive_detection::set_status(int status) {
 
     cur_frame_idx_ = 0;
 
-    FLOG("Inner open alive detection status: %d", open_alive_detection_ ? 1 : 0);
+    // FLOG("Inner open alive detection status: %d", open_alive_detection_ ? 1 : 0);
 }
 #ifdef TEST_FUNCTION
 void FOSAFER_alive_detection::mouse_detection(cv::Mat const &frame_image, float *close_prob, float *open_prob) {
@@ -451,9 +435,6 @@ void FOSAFER_alive_detection::mouse_detection(cv::Mat const &frame_image, float 
 #endif
 
 float eval_face_quality(cv::Mat const &face_image) {
-
-    FLOG("image size: %d %d", face_image.size().width, face_image.size().height);
-
     if(face_image.empty()) return -1;
     unsigned int pxnum = face_image.size().area();
     double sum = 0;
@@ -468,13 +449,10 @@ float eval_face_quality(cv::Mat const &face_image) {
             sum += face_image.data[z];
         }
     } else {
-        FLOG("image channal must be 1 or 3!");
         return -1.0f;
     }
 
     double mean = sum / pxnum;
-
-    FLOG("ILLU: %f", mean);
     return (float)mean;
 }
 
@@ -482,98 +460,39 @@ bool compareVector(const FaceRect &a, const FaceRect &b){
     return a.w * a.h > b.w * b.h;
 }
 
-int FOSAFER_alive_detection::update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts,
-Info *info, float minPercent, float maxPercent) 
-{
-    std::cout << "Enter alive detect update" << std::endl;
-    #define MIN_MOUTH_AREA_CHANGE 4500
-    #define MAX_NOSE_POS_CHANGE 0.7
-    #define MAX_TILE_DEGREE 8
-    #define MAX_MID_DEGREE 0.35
-    #define MIN_MOUTH_DISTANCE 0.6
-    #define MIN_CLOSE_TIMES 7
-    #define MIN_LIGHT 40
-    #define MAX_LIGHT 210
-
-    std::cout << "alive detect 1" << std::endl;
-    
+int FOSAFER_alive_detection::update(cv::Mat const &frame_image, const cv::Rect &face_rect, std::vector<cv::Point2f> *pts) 
+{    
     vector<FaceRect> faces;
     bool use_landmark = false;
     
     int not_use_facedet = 1;
     use_landmark = true;
-    FLOG("detectAlign USE LANDMARK");
+    // FLOG("detectAlign USE LANDMARK");
     double start_time = now_ms();
     last_score_ = align_->update(frame_image, face_rect, &pts_);
-    FLOG("detectAlign landmark face: %.02ff ms !", now_ms() - start_time);
     if(last_score_ < 0.6) {
-        FLOG("detectAlign NO FACE LANDMARK %f.", last_score_);
-        return FACE_ALIVE_UNDETECTED;
-    }
-
-    if(!__CLV__()) {
         return FACE_ALIVE_UNDETECTED;
     }
 
     if(pts)
         *pts = pts_;
-
-    if(!use_landmark) return FACE_ALIVE_DETECTED;
     
 #ifdef TEST_FUNCTION
     float mouth_open_prob, mouth_close_prob;
     mouse_detection(frame_image, &mouth_open_prob, &mouth_close_prob);
 #endif
     
-    //for debug
-#ifdef TEST_FUNCTION
-    cv::Mat frame_image_copy = frame_image.clone();
-    cv::cvtColor(frame_image_copy, frame_image_copy, COLOR_RGB2BGR);
-    char buf[100];
-    sprintf(buf, "%f", last_score_);
-    cv::putText(frame_image_copy, buf, cv::Point(20, 20), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0));
-
-    for(int idx = 0; idx < pts_.size(); idx++) {
-        cv::circle(frame_image_copy, pts_[idx], 2, cv::Scalar(0, 255, 0), 1);
-    }
-#endif
     float mid_degree = check_mid(pts_);
     float tilt_degree = check_tilt(pts_);
     float face_percent = align_->get_rect().width / float(frame_image.size().width);
 
-    FLOG("align_ rect: %d %d %d %d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
-
     float illu_status = eval_face_quality(frame_image(strip_rect(frame_image.size(), align_->get_rect())));
-
-    FLOG("mid_degree: %f tilt_degree: %f face_percent: %f illu %f", 
-        mid_degree, tilt_degree, face_percent, illu_status);
-    // if(info) {
-    //     info->face_status = 0;
-    //     if(face_percent < minPercent) {
-    //         //info->face_status |= FACE_STATUS_SMALL;
-    //         FLOG("too small, X:%d Y:%d W:%d H:%d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
-    //     } 
-    //     if(face_percent > maxPercent) {
-    //         //info->face_status |= FACE_STATUS_LARGE;
-    //         FLOG("too large, X:%d Y:%d W:%d H:%d", align_->get_rect().x, align_->get_rect().y, align_->get_rect().width, align_->get_rect().height);
-    //     } 
-    //     if(illu_status < MIN_LIGHT) {
-    //         //info->face_status |= FACE_STATUS_DARK;
-    //         FLOG("too dark %f", illu_status);
-    //     } 
-    //     if(illu_status > MAX_LIGHT) {
-    //         //info->face_status |= FACE_STATUS_BRIGHT;
-    //         FLOG("too light %f", illu_status);
-    //     } 
-    // }
     
     if(!open_alive_detection_) {
-        FLOG("FACE_ALIVE_DETECTED");
+        // FLOG("FACE_ALIVE_DETECTED");
         return FACE_ALIVE_DETECTED;
     } else {
-        FLOG("FACE_ALIVE_DETECTED_AND_ALIVE");
+        // FLOG("FACE_ALIVE_DETECTED_AND_ALIVE");
         return FACE_ALIVE_DETECTED_AND_ALIVE;
     }
 }
-    
-

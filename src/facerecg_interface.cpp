@@ -3,6 +3,7 @@
 #include "ncnnssd.h"
 #include "face_alignment.h"
 #include "rgbalive.h"
+#include "fas.h"
 
 #include "detectstrategy.h"
 #include "eye_exist.h"
@@ -63,6 +64,7 @@ private:
     ncnnssd *ncnnssd_;
     FOSAFER_alive_detection *alive_detector_;
     RGBFacefas *rgbalive_;
+    FaceFas *facefas_;
 };
 
 
@@ -110,12 +112,17 @@ CFosaferFaceRecogBackend::~CFosaferFaceRecogBackend(){
         delete rgbalive_;
         rgbalive_ = nullptr;
     }
+    if (facefas_) {
+        delete facefas_;
+        facefas_ = nullptr;
+    }
 }
 
 bool CFosaferFaceRecogBackend::init() {
     ncnnssd_ = new ncnnssd();
     alive_detector_ = new FOSAFER_alive_detection();
     rgbalive_ = new RGBFacefas();
+    facefas_ = new FaceFas();
     return true;
 }
 
@@ -359,7 +366,7 @@ cv::Rect CFosaferFaceRecogBackend::ReCalRect(const cv::Rect& face_rect, const cv
         face_rightbottom_y = image_rightbottom_y;
     }
     int face_width = face_rightbottom_x - face_lefttop_x;
-    int face_height = face_rightbottom_y - face_rightbottom_y;
+    int face_height = face_rightbottom_y - face_lefttop_y;
     
     return cv::Rect(face_lefttop_x, face_lefttop_y, face_width, face_height);
 }
@@ -399,11 +406,7 @@ double CFosaferFaceRecogBackend::calculate_average_gray_value(const cv::Mat& ima
     double average_blue_value = total_blue_value / (face.w * face.h);
     double average_green_value = total_green_value / (face.w * face.h);
     double average_red_value = total_red_value / (face.w * face.h);
-    // std::cout << "RGB:" << std::endl;
-    // std::cout << average_blue_value << std::endl;
-    // std::cout << average_green_value << std::endl;
-    // std::cout << average_red_value << std::endl;
-    
+
     return average_gray_value;
 }
 double CFosaferFaceRecogBackend::cal_variance(const cv::Mat& image_color, const ssdFaceRect &face) {
@@ -411,12 +414,6 @@ double CFosaferFaceRecogBackend::cal_variance(const cv::Mat& image_color, const 
     cv::Mat meanMat, stdMat;
     cv::meanStdDev(image_color, meanMat, stdMat);
  
-    // std::cout << "图像均值 和 标准方差" << std::endl;
-    // std::cout << meanMat << std::endl;
-    // std::cout << stdMat << std::endl;
- 
-    //std::cout << meanMat.at<double>(0) << " " << meanMat.at<double>(1) << " " << meanMat.at<double>(2) << std::endl;
-    //std::cout << stdMat.at<double>(0) << " " << stdMat.at<double>(1) << " " << stdMat.at<double>(2) << std::endl;
     return (stdMat.at<double>(0) + stdMat.at<double>(1) + stdMat.at<double>(2)) / 3;
 }
 
@@ -493,7 +490,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     rect_face.height = image_input->face_rect[0][3];
     
     //如果人脸框超出边界,则截掉
-    rect_face = ReCalRect(rect_face, rect_image);
+    rect_face = ReCalRect(rect_face, rect_image); 
 
     //计算均方差，均方差小于阈值，则判定为纸张
     double aver_variance = cal_variance(image_color_small, faces_success[0]);
@@ -540,9 +537,8 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     //计算人脸面积百分比
     float face_area = rect_face.width * rect_face.height; 
     float image_area = image_color.cols * image_color.rows;
-    float face_percent = static_cast<float>(face_area / image_area);
+    float face_percent = face_area / image_area;
     image_input->face_percent = face_percent;
-    std::cout << "face_percent:" << face_percent << std::endl;
     if (face_percent < min_face_percent) {
         std::cout << "请靠近一些" << std::endl;
     }
@@ -556,11 +552,11 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 
     std::cout << "关键点检测" << std::endl;
     //关键点检测
-    Info *info;
     std::vector<cv::Point2f> pts;
-    float m_min_percent = 0.0;
-    float m_max_percent = 100.0;
-    ret = alive_detector_->update(image_color_small, image_small_face_rect, &pts, info, m_min_percent, m_max_percent);
+    ret = alive_detector_->update(image_color_small, image_small_face_rect, &pts);
+    if (ret != 0) {
+        return FACE_DET_FAILED;
+    }
 
     int count = 0;
     std::vector<cv::Point> ori_points;
@@ -583,6 +579,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     }
     std::cout << "计算两眼之间的距离" << std::endl;
     //计算两眼之间的距离
+    std::cout << "size of landmarks" << ori_points.size() << std::endl;
     double dist = DistanceTo(ori_points[80], ori_points[81]);
     if(dist >= 60 && dist < 90) {
         image_input->eye_dist = 0;
@@ -620,64 +617,62 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     cv::Mat roi40 = image_color(rect40);
     
     image_input->alive_score = rgbalive_->detect(roi27.data, roi27.cols, roi27.rows, roi40.data, roi40.cols, roi40.rows);
-    std::cout << "alive_score:" << image_input->alive_score << std::endl;
+    std::cout << "alive_score: " << image_input->alive_score << std::endl;
+
+    float fasok;
+    cv::Mat fas_img;
+    image_color.copyTo(fas_img);
+    facefas_->detect(fas_img.data, fas_img.size().height, fas_img.size().width, &fasok);
+    image_input->alive_score2 = fasok;
+    std::cout << "alive_score2: " << image_input->alive_score2 << std::endl;
+
 
     //检测有无遮挡，眉毛，眼睛，鼻子，嘴巴，下巴，额头，耳朵
     //计算左眉毛的区域(8~15)
-    std::cout << "calculate eyebrow [BEGIN]" << std::endl;
     const float width_scale_eyebrow = 1;
     const float height_scale_eyebrow = 1.5;
     cv::Rect rect_left_eyebrow = CalRect(ori_points, 8, 15);
     rect_left_eyebrow = EnlargeRect(rect_left_eyebrow, width_scale_eyebrow, height_scale_eyebrow, image_color.cols, image_color.rows);
     cv::Mat image_left_eyebrow = image_color(rect_left_eyebrow);
-    cv::imwrite("../data/images/left_eyebrow.jpg", image_left_eyebrow);
-    std::cout << "calculate eyebrow [END]" << std::endl;
-
+    //cv::imwrite("../data/images/left_eyebrow.jpg", image_left_eyebrow);
+  
     //计算右眉毛的区域(0~7)
     cv::Rect rect_right_eyebrow = CalRect(ori_points, 0, 7);
     rect_right_eyebrow = EnlargeRect(rect_right_eyebrow, width_scale_eyebrow, height_scale_eyebrow, image_color.cols, image_color.rows);
     cv::Mat image_right_eyebrow = image_color(rect_right_eyebrow);
-    cv::imwrite("../data/images/right_eyebrow.jpg", image_right_eyebrow);
+    //cv::imwrite("../data/images/right_eyebrow.jpg", image_right_eyebrow);
 
-    //计算左眼的区域(24~31)
-    std::cout << "calculate eye [BEGIN]" << std::endl;
-    
+    //计算左眼的区域(24~31) 
     const float height_scale_eye = 1.8;
     const float width_scale_eye = 1.5;
     cv::Rect rect_left_eye = CalRect(ori_points, 24, 31);
     rect_left_eye = EnlargeRect(rect_left_eye, width_scale_eye, height_scale_eye, image_color.cols, image_color.rows);
     cv::Mat image_left_eye = image_color(rect_left_eye);
-    cv::imwrite("../data/images/left_eye.jpg", image_left_eye);
+    //cv::imwrite("../data/images/left_eye.jpg", image_left_eye);
     
     //计算右眼的区域(16~23)
     cv::Rect rect_right_eye = CalRect(ori_points, 16, 23);
     rect_right_eye = EnlargeRect(rect_right_eye, width_scale_eye, height_scale_eye, image_color.cols, image_color.rows);
     cv::Mat image_right_eye = image_color(rect_right_eye);
-    cv::imwrite("../data/images/right_eye.jpg", image_right_eye);
+    //cv::imwrite("../data/images/right_eye.jpg", image_right_eye);
     
     //计算鼻子的区域(32~42)
-    std::cout << "calculate nose [BEGIN]" << std::endl;
-    
     const float height_scale_nose = 1.2;
     const float width_scale_nose = 1.2;
     cv::Rect rect_nose = CalRect(ori_points, 32, 42);
     rect_nose = EnlargeRect(rect_nose, width_scale_nose, height_scale_nose, image_color.cols, image_color.rows);
     cv::Mat image_nose = image_color(rect_nose);
-    cv::imwrite("../data/images/nose.jpg", image_nose);
+    //cv::imwrite("../data/images/nose.jpg", image_nose);
 
     //计算嘴巴的区域(43~60)
-    std::cout << "calculate mouth [BEGIN]" << std::endl;
-    
     const float height_scale_mouth = 2.5;
     const float width_scale_mouth = 2;
     cv::Rect rect_mouth = CalRect(ori_points, 43, 60);
     rect_mouth = EnlargeRect(rect_mouth, width_scale_mouth, height_scale_mouth, image_color.cols, image_color.rows);
     cv::Mat image_mouth = image_color(rect_mouth);    
-    cv::imwrite("../data/images/mouth.jpg", image_mouth);
+    //cv::imwrite("../data/images/mouth.jpg", image_mouth);
     
     //计算下巴的区域,嘴巴往下
-    std::cout << "calculate chin [BEGIN]" << std::endl;
-    
     const float width_scale_chin = 2;
     const float height_scale_chin = 2;
     cv::Rect rect_chin = CalRect(ori_points, 43, 60);
@@ -685,29 +680,25 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     rect_chin.y = rect_chin.y + rect_chin.height * height_scale_chin / 1.5;
     rect_chin = EnlargeRect(rect_chin, width_scale_chin, height_scale_chin, image_color.cols, image_color.rows);
     cv::Mat image_chin = image_color(rect_chin);
-    cv::imwrite("../data/images/chin.jpg", image_chin);
+    //cv::imwrite("../data/images/chin.jpg", image_chin);
 
     //计算额头的区域,眉毛往上
-    std::cout << "calculate forehead [BEGIN]" << std::endl;
-    
     const float width_scale_forehead = 1.2;
     const float height_scale_forehead = 5;
     cv::Rect rect_forehead = CalRect(ori_points, 0, 15);
     rect_forehead.y = rect_forehead.y - rect_forehead.height * height_scale_forehead / 2;
     rect_forehead = EnlargeRect(rect_forehead, width_scale_forehead, height_scale_forehead, image_color.cols, image_color.rows);
     cv::Mat image_forehead = image_color(rect_forehead);
-    cv::imwrite("../data/images/forehead.jpg", image_forehead);
+    //cv::imwrite("../data/images/forehead.jpg", image_forehead);
 
     //计算左耳的区域(77~79)
-    std::cout << "calculate ear [BEGIN]" << std::endl;
-    
     const float width_scale_ear = 5;
     const float height_scale_ear = 2;
     cv::Rect rect_left_ear = CalRect(ori_points, 77, 79, 8);
     rect_left_ear.x = rect_left_ear.x + rect_left_ear.width * width_scale_ear / 2.0;
     rect_left_ear = EnlargeRect(rect_left_ear, width_scale_ear, height_scale_ear, image_color.cols, image_color.rows);
     cv::Mat image_left_ear = image_color(rect_left_ear);
-    cv::imwrite("../data/images/left_ear.jpg", image_left_ear);
+    //cv::imwrite("../data/images/left_ear.jpg", image_left_ear);
 
     
     //计算右耳的区域(61~63)
@@ -715,7 +706,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     rect_right_ear.x = rect_right_ear.x - rect_right_ear.width * width_scale_ear / 2.0;
     rect_right_ear = EnlargeRect(rect_right_ear, width_scale_ear, height_scale_ear, image_color.cols, image_color.rows);
     cv::Mat image_right_ear = image_color(rect_right_ear);
-    cv::imwrite("../data/images/right_ear.jpg", image_right_ear);
+    //cv::imwrite("../data/images/right_ear.jpg", image_right_ear);
 
     //分别检测有无遮挡
     std::shared_ptr<EyeExist> eye_detect = std::make_shared<EyeExist>();
@@ -745,14 +736,14 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
         cv::Scalar textColor(0, 0, 255);  // 以BGR格式指定颜色，这里为红色
         int fontThickness = 1;
 
-        cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
+        //cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
         count++;
     }
     
     cv::rectangle(image_color, rect_face, cv::Scalar(0, 255, 0), 2);
-    cv::imwrite("../data/images/result.jpg", image_color);
-	cv::imshow("result", image_color);
-	cv::waitKey(0);
+    // cv::imwrite("../data/images/result.jpg", image_color);
+	// cv::imshow("result", image_color);
+	// cv::waitKey(0);
 	
     return 0;
 }
