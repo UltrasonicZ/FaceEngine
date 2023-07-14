@@ -30,6 +30,7 @@ int MouthExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	ex.extract(mouth_exist_param_id::BLOB_output, out);
 	if (out.w * out.h * out.c == 2) { 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
+		std::cout << "mouth score : " << score << std::endl;
 		if(score >= 0.7)      // 有嘴
 		{
 			return 1;
@@ -43,4 +44,5 @@ int MouthExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 			return 0;
 		}
 	}
+	return -1;
 }

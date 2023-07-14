@@ -33,6 +33,7 @@ int EyeExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	if (out.w * out.h * out.c == 2) 
 	{ 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
+		std::cout << "eye score : " << score << std::endl;
 		if(score >= 0.5)      // 有眼睛
 		{
 			return 1;
@@ -46,4 +47,5 @@ int EyeExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 			return 0;
 		}
 	}
+	return -1;
 }

@@ -15,13 +15,17 @@ int main() {
 	img->size = test_image.channels() * test_image.rows * test_image.cols;
 	img->alive_score = 0.0;
 	memcpy(img->data, test_image.data, test_image.cols * test_image.rows * test_image.channels());
+	
 	int ret = FOSAFER_FaceRECOG_Detect(engine, img, 0);
 	std::cout << "ret = " << ret << std::endl;
 	std::cout << "face_num = " << img->face_num << std::endl;
-	std::cout << "x = " << img->face_rect[0][0] << std::endl;
-	std::cout << "y = " << img->face_rect[0][1] << std::endl;
-	std::cout << "w = " << img->face_rect[0][2] << std::endl;
-	std::cout << "h = " << img->face_rect[0][3] << std::endl;
+	std::cout << "mouth detect : " << img->detect_mouth << std::endl;
+	std::cout << "lefteye detect : " << img->detect_lefteye << std::endl;
+	std::cout << "righteye detect : " << img->detect_righteye << std::endl;
+	std::cout << "lefteyebrow detect : " << img->detect_lefteyebrow << std::endl;
+	std::cout << "righteyebrow detect : " << img->detect_righteyebrow << std::endl;
+	std::cout << "nose detect : " << img->detect_nose << std::endl;
+	std::cout << "chin detect : " << img->detect_chin << std::endl;
 	
 	for(int i = 0; i < img->face_num; ++i) {
 		cv::Rect rect;

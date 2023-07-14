@@ -40,10 +40,13 @@ set(SOURCE_LIST ${CMAKE_SOURCE_DIR}/src/facerecg_interface.cpp)
 list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/ncnnssd.cpp
     ${CMAKE_SOURCE_DIR}/src/face_alignment.cpp
-    ${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
+    #${CMAKE_SOURCE_DIR}/src/rgbalive.cpp
     ${CMAKE_SOURCE_DIR}/src/fas.cpp
     ${CMAKE_SOURCE_DIR}/src/eye_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/mouth_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/nose_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/eyebrow_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/chin_exist.cpp
     
     ${CMAKE_SOURCE_DIR}/src/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
