@@ -5,7 +5,7 @@
 
 EyeExist::EyeExist()
 {
-	net = NULL;
+	net = nullptr;
 	net = new ncnn::Net;
 	net->load_param(eye_exist_param_bin);
 	net->load_model(eye_exist_bin);
@@ -15,7 +15,7 @@ EyeExist::~EyeExist()
 {
 	if (net){
 		delete net;
-		net = NULL;
+		net = nullptr;
 	}
 }
 

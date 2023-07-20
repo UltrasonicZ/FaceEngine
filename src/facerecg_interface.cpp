@@ -3,6 +3,8 @@
 #include "ncnnssd.h"
 #include "face_alignment.h"
 #include "fas.h"
+#include "occ.h"
+#include "fas_structure.h"
 
 #include "detectstrategy.h"
 #include "eye_exist.h"
@@ -39,6 +41,8 @@ public:
     
     bool init();
     int detect(Image* image_input, int rotateCW);
+    int detect_deepth(DeepthImage *image_input, float face_rect[4]);
+    int detect_nir(NirImage *image_input, float face_rect[4]);
     
     void rotate_image_90n(cv::Mat &src, cv::Mat &dst, int angle);
     cv::Mat ResizeImage(cv::Mat image, int maxDimSize, double *scale_used);
@@ -68,6 +72,8 @@ private:
     FOSAFER_alive_detection *alive_detector_;
     //RGBFacefas *rgbalive_;
     FaceFas *facefas_;
+    FaceOcc *faceocc_;
+    FasStructure * fasstructure_;
 };
 
 
@@ -95,8 +101,8 @@ const double face_resol_high = 120.0;
 const double face_paper_thresh = 40.0;
 
 //人脸百分比
-const float min_face_percent = 0.05;
-const float max_face_percent = 0.15;
+const float min_face_percent = 0.05;   //60cm
+const float max_face_percent = 0.15;   //30cm
 
 CFosaferFaceRecogBackend::CFosaferFaceRecogBackend() {
     
@@ -119,6 +125,14 @@ CFosaferFaceRecogBackend::~CFosaferFaceRecogBackend(){
         delete facefas_;
         facefas_ = nullptr;
     }
+    if (faceocc_) {
+        delete faceocc_;
+        faceocc_ = nullptr;
+    }
+    if (fasstructure_) {
+        delete fasstructure_;
+        fasstructure_ = nullptr;
+    }
 }
 
 bool CFosaferFaceRecogBackend::init() {
@@ -126,6 +140,8 @@ bool CFosaferFaceRecogBackend::init() {
     alive_detector_ = new FOSAFER_alive_detection();
     // rgbalive_ = new RGBFacefas();
     facefas_ = new FaceFas();
+    faceocc_ = new FaceOcc();
+    fasstructure_ = new FasStructure();
     return true;
 }
 
@@ -394,14 +410,31 @@ double CFosaferFaceRecogBackend::calculate_average_gray_value(const cv::Mat& ima
     double total_gray_value = 0.0;
     cv::Mat image_gray;
     cv::cvtColor(image_color, image_gray, cv::COLOR_BGR2GRAY);
-    double total_blue_value = 0.0;
-    double total_green_value = 0.0;
-    double total_red_value = 0.0;
+    
+    // std::cout << "image_gray.x : " << image_gray.x << std::endl;
+    // std::cout << "image_gray.y : " << image_gray.y << std::endl;
+    std::cout << "image_gray.width : " << image_gray.size().width << std::endl;
+    std::cout << "image_gray.height : " << image_gray.size().height << std::endl;
+    
+    
+    std::cout << "rect_image.x : " << rect_image.x << std::endl;
+    std::cout << "rect_image.y : " << rect_image.y << std::endl;
+    std::cout << "rect_image.width : " << rect_image.width << std::endl;
+    std::cout << "rect_image.height : " << rect_image.height << std::endl;
+
     for (int i = rect_image.x; i < rect_image.x + rect_image.width; ++i) {
         for (int j = rect_image.y; j < rect_image.y + rect_image.height; ++j) {
             total_gray_value += static_cast<double>(image_gray.at<uchar>(i, j));
+            //std::cout << total_gray_value << std::endl;
         }
+        //std::cout << "row : " << i << std::endl;
     }
+    
+    std::cout << "rect_image.x : " << rect_image.x << std::endl;
+    std::cout << "rect_image.y : " << rect_image.y << std::endl;
+    std::cout << "rect_image.width : " << rect_image.width << std::endl;
+    std::cout << "rect_image.height : " << rect_image.height << std::endl;
+
     double average_gray_value = total_gray_value / (rect_image.width * rect_image.height);
     return average_gray_value;
 }
@@ -521,6 +554,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     // [v0, v1), [v2, v3) => MEDIUM
     // [v1, v2) => HIGH
 
+/*
     double aver_grayscale_value = calculate_average_gray_value(image_color, rect_image);
     image_input->image_average_gray_value = aver_grayscale_value;
     image_input->image_brightness = getbrightness(aver_grayscale_value);
@@ -528,6 +562,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     aver_grayscale_value = calculate_average_gray_value(image_color, rect_face);
     image_input->face_average_gray_value = aver_grayscale_value;
     image_input->face_brightness = getbrightness(aver_grayscale_value);    
+*/    
     
     /*
     //人脸分辨率
@@ -801,6 +836,13 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     int detect_chin = context->detect(image_chin.data, image_chin.cols, image_chin.rows);
     image_input->detect_chin = detect_chin;
 
+    float occok;
+    cv::Mat subimage_occ;
+    cv::resize(image_color_small(cv::Rect(faces[0].x, faces[0].y, faces[0].w, faces[0].h)), subimage_occ, cv::Size(64, 64));
+    faceocc_->detect(subimage_occ.data, subimage_occ.size().height, subimage_occ.size().width, &occok);
+    std::cout << "occ detect : " <<occok << std::endl;
+    image_input->detect_occ = 0;
+    
 /*
     count = 0;
     for(auto point : ori_points) {
@@ -831,6 +873,30 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 	
     return 0;
 }
+
+int CFosaferFaceRecogBackend::detect_nir(NirImage *image_input, float face_rect[4]) {
+    return 0;
+}
+    
+
+int CFosaferFaceRecogBackend::detect_deepth(DeepthImage *image_input, float face_rect[4]) {
+    int ret = 0;
+    cv::Mat image_color;
+    cv::Rect rect_face(face_rect[0], face_rect[1], face_rect[2], face_rect[3]);
+    cv::Rect rect_image(0, 0, image_input->width, image_input->height);
+
+    cv::Mat image_buf(image_input->height, image_input->width, CV_8UC3, image_input->data);
+    image_color.create(image_buf.size().height, image_buf.size().width, image_buf.channels() == 3 ? CV_8UC3 : CV_8UC1);
+    memcpy(image_color.data, image_buf.data, image_buf.size().height* image_buf.size().width * image_buf.channels());
+    
+    cv::Mat image_face = image_color(rect_face);
+
+    //ret = fasstructure_->detect(image_face.data, image_face.cols, image_face.rows);
+    
+    ret = fasstructure_->detect(image_input->data, image_input->width, image_input->height);
+    return 0;
+}
+    
 
 void CFosaferFaceRecogBackend::rotate_image_90n(cv::Mat &src, cv::Mat &dst, int angle)
 {
@@ -896,7 +962,17 @@ DLL_PUBLIC int FOSAFER_FaceRECOG_Release(FACERECOG_ENGINE_HANDLE pHandle) {
     
 }
 
-DLL_PUBLIC int FOSAFER_FaceRECOG_Detect(FACERECOG_ENGINE_HANDLE pHandle, Image* image, int rotateCW) {
+DLL_PUBLIC int FOSAFER_FaceRECOG_RGBDetect(FACERECOG_ENGINE_HANDLE pHandle, Image* image, int rotateCW) {
     CFosaferFaceRecogBackend* instance = (CFosaferFaceRecogBackend*)pHandle;
     return instance->detect(image, rotateCW);
+}
+
+DLL_PUBLIC int FOSAFER_FaceRECOG_DeepthDetect(FACERECOG_ENGINE_HANDLE pHandle, DeepthImage* image, float face_rect[4]) {
+    CFosaferFaceRecogBackend* instance = (CFosaferFaceRecogBackend*)pHandle;
+    return instance->detect_deepth(image, face_rect);
+}
+
+DLL_PUBLIC int FOSAFER_FaceRECOG_NirDetect(FACERECOG_ENGINE_HANDLE pHandle, DeepthImage* image, float face_rect[4]) {
+    CFosaferFaceRecogBackend* instance = (CFosaferFaceRecogBackend*)pHandle;
+    return instance->detect_nir(image, face_rect);
 }

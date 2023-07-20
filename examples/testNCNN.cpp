@@ -5,18 +5,20 @@
 int main() {
     FACERECOG_ENGINE_HANDLE engine = FOSAFER_FaceRECOG_Initialize();
     // cv::Mat test_image = cv::imread("../data/images/foreigner.png");
-    cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
+    cv::Mat test_image = cv::imread("../data/images/2023-07-13-184124.jpg");
 	Image* img = new Image;
-
+	std::cout << "img here" << std::endl;
 	img->data = test_image.data;
 	img->width = test_image.cols;
 	img->height = test_image.rows;
+	// std::cout << img->width << std::endl;
+	// std::cout << img->height << std::endl;
 	img->channel = test_image.channels();
 	img->size = test_image.channels() * test_image.rows * test_image.cols;
 	img->alive_score = 0.0;
 	memcpy(img->data, test_image.data, test_image.cols * test_image.rows * test_image.channels());
 	
-	int ret = FOSAFER_FaceRECOG_Detect(engine, img, 0);
+	int ret = FOSAFER_FaceRECOG_RGBDetect(engine, img, 0);
 	std::cout << "ret = " << ret << std::endl;
 	std::cout << "face_num = " << img->face_num << std::endl;
 	std::cout << "mouth detect : " << img->detect_mouth << std::endl;
@@ -26,6 +28,7 @@ int main() {
 	std::cout << "righteyebrow detect : " << img->detect_righteyebrow << std::endl;
 	std::cout << "nose detect : " << img->detect_nose << std::endl;
 	std::cout << "chin detect : " << img->detect_chin << std::endl;
+	std::cout << "face alive score : " << img->alive_score << std::endl;
 	
 	for(int i = 0; i < img->face_num; ++i) {
 		cv::Rect rect;

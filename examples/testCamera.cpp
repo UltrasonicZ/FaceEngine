@@ -26,7 +26,7 @@ int main() {
 		img->size = src.channels() * src.rows * src.cols;
 		img->alive_score = 0.0;
 		memcpy(img->data, src.data, src.cols * src.rows * src.channels());
-		int ret = FOSAFER_FaceRECOG_Detect(engine, img, 0);
+		int ret = FOSAFER_FaceRECOG_RGBDetect(engine, img, 0);
 		
 		std::string face_percent = "face percent : " + std::to_string(img->face_percent);
 		cv::Scalar font_color;

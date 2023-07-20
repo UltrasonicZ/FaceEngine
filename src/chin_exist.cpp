@@ -33,10 +33,6 @@ int ChinExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	if (out.w * out.h * out.c == 2) 
 	{ 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
-		std::cout << "chin out.data[0]:" << exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1])) << std::endl;
-		std::cout << "chin out.data[1]:" << exp(((float*)out.data)[1]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1])) << std::endl;
-		
-		std::cout << "chin score : " << score << std::endl;
 		if(score >= 0.5)      // 有眼睛
 		{
 			return 1;

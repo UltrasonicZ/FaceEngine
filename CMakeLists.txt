@@ -47,6 +47,8 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/nose_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/eyebrow_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/chin_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/occ.cpp
+    ${CMAKE_SOURCE_DIR}/src/fas_structure.cpp
     
     ${CMAKE_SOURCE_DIR}/src/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
@@ -60,6 +62,9 @@ add_library(${TARGET} SHARED
 )
     
 set(ncnn_DIR "/home/storm/software/ncnn/build/install/lib/cmake/ncnn" CACHE PATH "Directory that contains ncnnConfig.cmake")
+# set(ncnn_DIR "/home/storm/software/faceiqa/fosaferncnn/build-linux/install/lib/cmake/ncnn" CACHE PATH "Directory that contains ncnnConfig.cmake")
+
+
 find_package(ncnn REQUIRED)
 target_link_libraries(${TARGET} 
     ${OpenCV_LIBS}
@@ -76,6 +81,7 @@ if (CAMERA)
 else()
     add_executable(testGZ 
         ${CMAKE_SOURCE_DIR}/examples/testNCNN.cpp
+        #${CMAKE_SOURCE_DIR}/examples/test3D.cpp
         ${SOURCE_LIST}
         )
 endif()

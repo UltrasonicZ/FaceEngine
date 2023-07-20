@@ -47,6 +47,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+    typedef struct ImageEx
+    {
+        unsigned char* data;
+        int height;
+        int width;
+        int channel;
+
+        float alive_score;
+    }NirImage, DeepthImage;
+
     typedef struct Image
     {
         unsigned char* data;
@@ -75,6 +85,7 @@ extern "C" {
         int detect_lefteyebrow;
         int detect_righteyebrow;
         int detect_chin;
+        int detect_occ;
         float face_percent;
         bool isNearEdge;
     } Image;
@@ -94,7 +105,11 @@ extern "C" {
     //            当需要限定画面中人脸检测的区域时, 需要传入image->face_rect, 并且设置好image->width和height
     // rotateCW[in]: 旋转角度,0/90/180/270
     // return 图像解码失败或未检测到人脸返回FACE_ERROR_NO_FACE，图像质量过低返回FACE_ERROR_LOW_QUALITY，句柄未空返回FACE_ERROR_NULL
-    DLL_PUBLIC int APIENTRY FOSAFER_FaceRECOG_Detect(FACERECOG_ENGINE_HANDLE pHandle, Image* image, int rotateCW);
+    DLL_PUBLIC int APIENTRY FOSAFER_FaceRECOG_RGBDetect(FACERECOG_ENGINE_HANDLE pHandle, Image* image, int rotateCW);
+
+    DLL_PUBLIC int APIENTRY FOSAFER_FaceRECOG_NirDetect(FACERECOG_ENGINE_HANDLE pHandle, NirImage* image, float face_rect[4]);
+
+    DLL_PUBLIC int APIENTRY FOSAFER_FaceRECOG_DeepthDetect(FACERECOG_ENGINE_HANDLE pHandle, DeepthImage* image, float face_rect[4]);
 
 #ifdef __cplusplus
 }
