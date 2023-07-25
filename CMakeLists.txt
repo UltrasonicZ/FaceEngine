@@ -47,6 +47,7 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/nose_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/eyebrow_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/chin_exist.cpp
+    ${CMAKE_SOURCE_DIR}/src/forehead_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/occ.cpp
     ${CMAKE_SOURCE_DIR}/src/fas_structure.cpp
     

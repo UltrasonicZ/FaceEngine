@@ -7,7 +7,7 @@ class FasStructure {
 public:
     FasStructure();
     ~FasStructure();
-    int detect(unsigned char*pInBGRData, int nInCols, int nInRows);
+    float detect(unsigned char*pInBGRData, int nInCols, int nInRows, float *score);
 private:
 	ncnn::Net *net;
 };

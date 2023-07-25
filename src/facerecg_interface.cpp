@@ -12,6 +12,7 @@
 #include "nose_exist.h"
 #include "eyebrow_exist.h"
 #include "chin_exist.h"
+#include "forehead_exist.h"
 #include "detectcontext.h"
 
 #include <algorithm>
@@ -264,7 +265,6 @@ cv::Rect CFosaferFaceRecogBackend::CalculateBox(FaceBox& box, float scale_, int 
 
     return cv::Rect(left_top_x, left_top_y, new_width, new_height);
 }   
-
 
 cv::Rect CFosaferFaceRecogBackend::CalRect(const std::vector<cv::Point> &pts, int begin, int end, int numPoint) {
     int lefttop_x = 1000000000, lefttop_y = 1000000000;
@@ -803,6 +803,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     std::shared_ptr<NoseExist> nose_detect = std::make_shared<NoseExist>();
     std::shared_ptr<EyebrowExist> eyebrow_detect = std::make_shared<EyebrowExist>();
     std::shared_ptr<ChinExist> chin_detect = std::make_shared<ChinExist>();
+    std::shared_ptr<ForeheadExist> forehead_detect = std::make_shared<ForeheadExist>();
 
     //左眼
     std::shared_ptr<DetectContext> context = std::make_shared<DetectContext>(eye_detect.get());
@@ -836,6 +837,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     int detect_chin = context->detect(image_chin.data, image_chin.cols, image_chin.rows);
     image_input->detect_chin = detect_chin;
 
+    //脸部轮廓
     float occok;
     cv::Mat subimage_occ;
     cv::resize(image_color_small(cv::Rect(faces[0].x, faces[0].y, faces[0].w, faces[0].h)), subimage_occ, cv::Size(64, 64));
@@ -843,7 +845,11 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     std::cout << "occ detect : " <<occok << std::endl;
     image_input->detect_occ = 0;
     
-/*
+    //额头
+    context->setStrategy(forehead_detect.get());
+    int detect_forehead = context->detect(image_forehead.data, image_forehead.cols, image_forehead.rows);
+    image_input->detect_forehead = detect_forehead;
+
     count = 0;
     for(auto point : ori_points) {
         std::string label = std::to_string(count);
@@ -853,10 +859,10 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
         cv::Scalar textColor(0, 0, 255);  // 以BGR格式指定颜色，这里为红色
         int fontThickness = 1;
 
-        //cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
+        cv::putText(image_color, label, textPos, fontFace, fontScale, textColor, fontThickness);
         count++;
     }
-*/  
+
     image_input->face_rect[1][0] = rect_mouth.x * scale_factor_;
     image_input->face_rect[1][1] = rect_mouth.y * scale_factor_;
     image_input->face_rect[1][2] = rect_mouth.width * scale_factor_;
@@ -867,7 +873,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 
     // cv::rectangle(image_color, rect_face, cv::Scalar(0, 255, 0), 2);
 
-    // cv::imwrite("../data/images/result.jpg", image_color);
+    cv::imwrite("../data/images/result.jpg", image_color);
 	// cv::imshow("result", image_color);
 	// cv::waitKey(0);
 	
@@ -891,9 +897,9 @@ int CFosaferFaceRecogBackend::detect_deepth(DeepthImage *image_input, float face
     
     cv::Mat image_face = image_color(rect_face);
 
-    //ret = fasstructure_->detect(image_face.data, image_face.cols, image_face.rows);
-    
-    ret = fasstructure_->detect(image_input->data, image_input->width, image_input->height);
+    float score;
+    ret = fasstructure_->detect(image_face.data, image_face.cols, image_face.rows, &score);
+    image_input->alive_score = score;
     return 0;
 }
     

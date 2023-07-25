@@ -79,13 +79,13 @@ bool ncnnssd::detect(unsigned char*pInBGRData, int nInRows, int nInCols, std::ve
 			float x2 = values[4] * nInCols;
 			float y2 = values[5] * nInRows;
 
-			float cx = (x2+x1)/2.0;
-			float cy = (y2+y1)/2.0;
-			float mm = std::max(y2-y1, x2-x1)/2.0;
-			x1 = cx-mm*0.9;
-			y1 = cy-mm*0.9;
-			x2 = cx+mm*0.9;
-			y2 = cy+mm*0.9;
+			float cx = (x2 + x1)/2.0;
+			float cy = (y2 + y1)/2.0;
+			float mm = std::max(y2 - y1, x2 - x1) / 2.0;
+			x1 = cx - mm * 0.9;
+			y1 = cy - mm * 0.9;
+			x2 = cx + mm * 0.9;
+			y2 = cy + mm * 0.9;
 
 			face.x = clipBorder(x1, 0, nInCols);
 			face.y = clipBorder(y1, 0, nInRows);

@@ -86,6 +86,7 @@ extern "C" {
         int detect_righteyebrow;
         int detect_chin;
         int detect_occ;
+        int detect_forehead;
         float face_percent;
         bool isNearEdge;
     } Image;
