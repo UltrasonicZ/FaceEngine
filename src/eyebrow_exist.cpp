@@ -1,6 +1,6 @@
 #include "eyebrow_exist.h"
-#include "eyebrow-sim-opt.id.h"
-#include "eyebrow-sim-opt.mem.h"
+#include "eyebrow_sim_opt.id.h"
+#include "eyebrow_sim_opt.mem.h"
 #include <iostream>
 
 EyebrowExist::EyebrowExist()

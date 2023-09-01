@@ -1,11 +1,10 @@
 #include "chin_exist.h"
-#include "chin-sim-opt.id.h"
-#include "chin-sim-opt.mem.h"
+#include "chin_sim_opt.id.h"
+#include "chin_sim_opt.mem.h"
 #include <iostream>
 
 ChinExist::ChinExist()
 {
-	net = NULL;
 	net = new ncnn::Net;
 	net->load_param(chin_sim_opt_param_bin);
 	net->load_model(chin_sim_opt_bin);
@@ -15,8 +14,8 @@ ChinExist::~ChinExist()
 {
 	if (net){
 		delete net;
-		net = NULL;
 	}
+	net = nullptr;
 }
 
 int ChinExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
@@ -33,6 +32,7 @@ int ChinExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	if (out.w * out.h * out.c == 2) 
 	{ 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
+		std::cout << "chin score : " << score << std::endl;
 		if(score >= 0.5)      // 有眼睛
 		{
 			return 1;

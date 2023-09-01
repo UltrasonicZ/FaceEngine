@@ -19,7 +19,7 @@ int main() {
 	int ret = FOSAFER_FaceRECOG_DeepthDetect(engine, img, face_rect);
 	
 	ret = FOSAFER_FaceRECOG_Release(engine);
-
+	std::cout << "alive_score : " << img->alive_score << std::endl;
 	std::cout << "success" << std::endl;
 	return 0;
 }

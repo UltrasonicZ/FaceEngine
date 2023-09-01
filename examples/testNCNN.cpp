@@ -6,7 +6,7 @@
 int main() {
     FACERECOG_ENGINE_HANDLE engine = FOSAFER_FaceRECOG_Initialize();
     // cv::Mat test_image = cv::imread("../data/images/foreigner.png");
-    cv::Mat test_image = cv::imread("../data/images/gaozhou.jpg");
+    cv::Mat test_image = cv::imread("/home/storm/project/facedetection/data/images/jiemin.jpg");
 	Image* img = new Image;
 	
 	img->data = test_image.data;
@@ -21,18 +21,18 @@ int main() {
 
 	int ret = FOSAFER_FaceRECOG_RGBDetect(engine, img, 0);
 
-	DeepthImage *deepimg = new DeepthImage;
-	cv::Mat deep_image = cv::imread("../data/images/gaozhou.jpg");	
-	deepimg->data = deep_image.data;
-	deepimg->width = deep_image.cols;
-	deepimg->height = deep_image.rows;
-	deepimg->channel = deep_image.channels();
-	deepimg->alive_score = 0.0;
-	memcpy(deepimg->data, deep_image.data, deep_image.cols * deep_image.rows * deep_image.channels());
+	// DeepthImage *deepimg = new DeepthImage;
+	// cv::Mat deep_image = cv::imread("../data/images/cp.jpg");	
+	// deepimg->data = deep_image.data;
+	// deepimg->width = deep_image.cols;
+	// deepimg->height = deep_image.rows;
+	// deepimg->channel = deep_image.channels();
+	// deepimg->alive_score = 0.0;
+	// memcpy(deepimg->data, deep_image.data, deep_image.cols * deep_image.rows * deep_image.channels());
 	
 	// DLL_PUBLIC int APIENTRY FOSAFER_FaceRECOG_DeepthDetect(FACERECOG_ENGINE_HANDLE pHandle, DeepthImage* image, float face_rect[4]);
 
-	ret = FOSAFER_FaceRECOG_DeepthDetect(engine, deepimg, img->face_rect[0]);
+	// ret = FOSAFER_FaceRECOG_DeepthDetect(engine, deepimg, img->face_rect[0]);
 
 	auto end = std::chrono::high_resolution_clock::now();
 
@@ -47,7 +47,7 @@ int main() {
 	std::cout << "chin detect : " << img->detect_chin << std::endl;
 	std::cout << "forehead detect : " << img->detect_forehead << std::endl;
 	std::cout << "face alive score : " << img->alive_score << std::endl;
-	std::cout << "face 3D alive score : " << deepimg->alive_score << std::endl;
+	// std::cout << "face 3D alive score : " << deepimg->alive_score << std::endl;
 
 	std::chrono::duration<double> duration = end - start;
 

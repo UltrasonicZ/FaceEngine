@@ -1,11 +1,10 @@
 #include "nose_exist.h"
-#include "nose_exist.id.h"
-#include "nose_exist.mem.h"
+#include "nose_sim_opt.id.h"
+#include "nose_sim_opt.mem.h"
 #include <iostream>
 
 NoseExist::NoseExist()
 {
-	net = NULL;
 	net = new ncnn::Net;
 	net->load_param(nose_sim_opt_param_bin);
 	net->load_model(nose_sim_opt_bin);
@@ -15,8 +14,8 @@ NoseExist::~NoseExist()
 {
 	if (net){
 		delete net;
-		net = NULL;
 	}
+	net = nullptr;
 }
 
 int NoseExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
@@ -33,7 +32,7 @@ int NoseExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	if (out.w * out.h * out.c == 2) 
 	{ 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
-		std::cout << "nose score : " << score << std::endl;
+		std::cout << "nose2 score : " << score << std::endl;
 		if(score >= 0.5)      // 有鼻子
 		{
 			return 1;

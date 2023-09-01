@@ -7,7 +7,8 @@ class FaceOcc
 public:
 	FaceOcc();
 	~FaceOcc();
-	bool detect(unsigned char*pInBGRData,int nInRows,int nInCols, float* faceok);
+	int detect(unsigned char*pInBGRData, int nInRows, int nInCols);
+
 private:
 	ncnn::Net *net;
 };

@@ -29,11 +29,11 @@ float FasStructure::detect(unsigned char*pInBGRData, int nInCols, int nInRows, f
 	if (out.w * out.h * out.c == 2) { 
 		float score_3d = exp(((float*)out.data)[1]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
 		*score = score_3d;
-		if(score_3d >= 0.5)      // 有额头
+		if(score_3d >= 0.5)      
 		{
 			return 1;
 		}
-		else if(score_3d <= 0.4)  // 无额头
+		else if(score_3d <= 0.4) 
 		{
 			return 2;
 		}

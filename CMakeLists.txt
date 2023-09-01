@@ -48,7 +48,7 @@ list(APPEND SOURCE_LIST
     ${CMAKE_SOURCE_DIR}/src/eyebrow_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/chin_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/forehead_exist.cpp
-    ${CMAKE_SOURCE_DIR}/src/occ.cpp
+    ${CMAKE_SOURCE_DIR}/src/occ_exist.cpp
     ${CMAKE_SOURCE_DIR}/src/fas_structure.cpp
     
     ${CMAKE_SOURCE_DIR}/src/tool.cpp
@@ -81,8 +81,10 @@ if (CAMERA)
         )
 else()
     add_executable(testGZ 
+        # ${CMAKE_SOURCE_DIR}/examples/test_picture.cc
+     
         ${CMAKE_SOURCE_DIR}/examples/testNCNN.cpp
-        #${CMAKE_SOURCE_DIR}/examples/test3D.cpp
+        # ${CMAKE_SOURCE_DIR}/examples/test3D.cpp
         ${SOURCE_LIST}
         )
 endif()

@@ -1,13 +1,13 @@
 #include "mouth_exist.h"
-#include "mouth_exist.id.h"
-#include "mouth_exist.mem.h"
+#include "mouth_sim_opt.id.h"
+#include "mouth_sim_opt.mem.h"
 #include <iostream>
 
 MouthExist::MouthExist() {
 	net = nullptr;
 	net = new ncnn::Net;
-	net->load_param(mouth_exist_param_bin);
-	net->load_model(mouth_exist_bin);
+	net->load_param(mouth_sim_opt_param_bin);
+	net->load_model(mouth_sim_opt_bin);
 }
 
 MouthExist::~MouthExist() {
@@ -26,8 +26,8 @@ int MouthExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	ncnn::Extractor ex = net->create_extractor();
 	ex.set_light_mode(true);
 	ex.set_num_threads(1);
-	ex.input(mouth_exist_param_id::BLOB_input, indata);
-	ex.extract(mouth_exist_param_id::BLOB_output, out);
+	ex.input(mouth_sim_opt_param_id::BLOB_input, indata);
+	ex.extract(mouth_sim_opt_param_id::BLOB_output, out);
 	if (out.w * out.h * out.c == 2) { 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));
 		std::cout << "mouth score : " << score << std::endl;

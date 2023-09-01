@@ -1,14 +1,14 @@
 #include "eye_exist.h"
-#include "eye_exist.id.h"
-#include "eye_exist.mem.h"
+#include "eye_sim_opt.id.h"
+#include "eye_sim_opt.mem.h"
 #include <iostream>
 
 EyeExist::EyeExist()
 {
 	net = nullptr;
 	net = new ncnn::Net;
-	net->load_param(eye_exist_param_bin);
-	net->load_model(eye_exist_bin);
+	net->load_param(eye_sim_opt_param_bin);
+	net->load_model(eye_sim_opt_bin);
 }
 
 EyeExist::~EyeExist()
@@ -28,8 +28,8 @@ int EyeExist::detect(unsigned char*pInBGRData, int nInCols, int nInRows) {
 	ncnn::Extractor ex = net->create_extractor();
 	ex.set_light_mode(true);
 	ex.set_num_threads(1);
-	ex.input(eye_exist_param_id::BLOB_input, indata);
-	ex.extract(eye_exist_param_id::BLOB_output, out);
+	ex.input(eye_sim_opt_param_id::BLOB_input, indata);
+	ex.extract(eye_sim_opt_param_id::BLOB_output, out);
 	if (out.w * out.h * out.c == 2) 
 	{ 
 		float score = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]));

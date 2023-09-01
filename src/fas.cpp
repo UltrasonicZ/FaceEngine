@@ -1,21 +1,21 @@
 #include "fas.h"
-#include "fas_sim.id.h"
-#include "fas_sim.mem.h"
+#include "fas_sim_opt.id.h"
+#include "fas_sim_opt.mem.h"
+#include <iostream>
 
 FaceFas::FaceFas()
 {
-	net = NULL;
 	net = new ncnn::Net;
-	net->load_param(fas_sim_param_bin);
-	net->load_model(fas_sim_bin);
+	net->load_param(fas_sim_opt_param_bin);
+	net->load_model(fas_sim_opt_bin);
 }
 
 FaceFas::~FaceFas()
 {
 	if (net){
 		delete net;
-		net = nullptr;
-	}
+	}	
+	net = nullptr;
 }
 
 bool FaceFas::detect(unsigned char*pInBGRData, int nInRows, int nInCols, float* faceok) {
@@ -27,11 +27,19 @@ bool FaceFas::detect(unsigned char*pInBGRData, int nInRows, int nInCols, float* 
 	ncnn::Extractor ex = net->create_extractor();
 	ex.set_light_mode(true);
 	ex.set_num_threads(1);
-	ex.input(fas_sim_param_id::BLOB_input, indata);
-	ex.extract(fas_sim_param_id::BLOB_output, out);
+	ex.input(fas_sim_opt_param_id::BLOB_input, indata);
+	ex.extract(fas_sim_opt_param_id::BLOB_output, out);
 	// printf("dimension: w:%d, h:%d, c:%d\n", out.w * out.h * out.c);
 	// printf("out data : data0: %f, data1: %f\n", ((float*)out.data)[0], ((float*)out.data)[1]);
 	*faceok = exp(((float*)out.data)[1]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]) + exp(((float*)out.data)[2])); 
+	float out0 = exp(((float*)out.data)[0]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]) + exp(((float*)out.data)[2]));
+	float out1 = exp(((float*)out.data)[1]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]) + exp(((float*)out.data)[2]));
+	float out2 = exp(((float*)out.data)[2]) / (exp(((float*)out.data)[0]) + exp(((float*)out.data)[1]) + exp(((float*)out.data)[2]));
+	std::cout << out0 << std::endl;
+	
+	std::cout << out1 << std::endl;
+	
+	std::cout << out2 << std::endl;
 	// *faceok = ((float*)out.data)[1];
 	return true;
 }

@@ -3,7 +3,6 @@
 #include "ncnnssd.h"
 #include "face_alignment.h"
 #include "fas.h"
-#include "occ.h"
 #include "fas_structure.h"
 
 #include "detectstrategy.h"
@@ -13,6 +12,7 @@
 #include "eyebrow_exist.h"
 #include "chin_exist.h"
 #include "forehead_exist.h"
+#include "occ_exist.h"
 #include "detectcontext.h"
 
 #include <algorithm>
@@ -642,10 +642,17 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
     // 活体检测
     float fasok;
     cv::Mat fas_img;
-    image_color.copyTo(fas_img);
+    cv::Mat image_color_rgb;
+    cv::Mat image_color_resize;
+    
+    cv::cvtColor(image_color, image_color_rgb, cv::COLOR_BGR2RGB);
+    cv::resize(image_color_rgb, image_color_resize, cv::Size(400, 400));
+    
+    image_color_resize.copyTo(fas_img);
     facefas_->detect(fas_img.data, fas_img.size().height, fas_img.size().width, &fasok);
     image_input->alive_score = fasok;
     
+    // std::cout << "不是我" << std::endl;
 
     //检测有无遮挡，眉毛，眼睛，鼻子，嘴巴，下巴，额头，耳朵
     //计算左眉毛的区域(8~15)
@@ -764,7 +771,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 
     //计算下巴的区域,嘴巴往下
     const float width_scale_chin = 3;
-    const float height_scale_chin = 4;
+    const float height_scale_chin = 2.5;
     cv::Rect rect_chin = CalRect(ori_points, 43, 60);
     //左上角确定
     rect_chin.y = rect_chin.y + rect_chin.height * height_scale_chin / 2;
@@ -774,7 +781,7 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 
     //计算额头的区域,眉毛往上
     const float width_scale_forehead = 1.2;
-    const float height_scale_forehead = 5;
+    const float height_scale_forehead = 3;
     cv::Rect rect_forehead = CalRect(ori_points, 0, 15);
     rect_forehead.y = rect_forehead.y - rect_forehead.height * height_scale_forehead / 2;
     rect_forehead = EnlargeRect(rect_forehead, width_scale_forehead, height_scale_forehead, image_color.cols, image_color.rows);
@@ -807,48 +814,66 @@ int CFosaferFaceRecogBackend::detect(Image* image_input, int rotateCW) {
 
     //左眼
     std::shared_ptr<DetectContext> context = std::make_shared<DetectContext>(eye_detect.get());
-    int detect_lefteye = context->detect(image_left_eye.data, image_left_eye.cols, image_left_eye.rows);
+    //左眼
+    cv::Mat subimage_lefteye;
+    cv::resize(image_left_eye, subimage_lefteye, cv::Size(64, 64));
+    int detect_lefteye = context->detect(subimage_lefteye.data, subimage_lefteye.cols, subimage_lefteye.rows);
     image_input->detect_lefteye = detect_lefteye;
     //右眼
-    int detect_righteye = context->detect(image_right_eye.data, image_right_eye.cols, image_right_eye.rows);
+    cv::Mat subimage_righteye;
+    cv::resize(image_right_eye, subimage_righteye, cv::Size(64, 64));
+    int detect_righteye = context->detect(subimage_righteye.data, subimage_righteye.cols, subimage_righteye.rows);
     image_input->detect_righteye = detect_righteye;
+    
     //嘴巴
+    cv::Mat subimage_mouth;
+    cv::resize(image_mouth, subimage_mouth, cv::Size(64, 64));
     context->setStrategy(mouth_detect.get());
-    int detect_mouth = context->detect(image_mouth.data, image_mouth.cols, image_mouth.rows);
+    int detect_mouth = context->detect(subimage_mouth.data, subimage_mouth.cols, subimage_mouth.rows);
     image_input->detect_mouth = detect_mouth;
 
     //鼻子
+    cv::Mat subimage_nose;
+    cv::resize(image_nose, subimage_nose, cv::Size(64, 64));
     context->setStrategy(nose_detect.get());
-    int detect_nose = context->detect(image_nose.data, image_nose.cols, image_nose.rows);
+    int detect_nose = context->detect(subimage_nose.data, subimage_nose.cols, subimage_nose.rows);
     image_input->detect_nose = detect_nose;
 
     //左眉毛
+    cv::Mat subimage_lefteyebrow;
+    cv::resize(image_left_eyebrow, subimage_lefteyebrow, cv::Size(64, 64));
     context->setStrategy(eyebrow_detect.get());
-    int detect_lefteyebrow = context->detect(image_left_eyebrow.data, image_left_eyebrow.cols, image_left_eyebrow.rows);
+    int detect_lefteyebrow = context->detect(subimage_lefteyebrow.data, subimage_lefteyebrow.cols, subimage_lefteyebrow.rows);
     image_input->detect_lefteyebrow = detect_lefteyebrow;
 
     //右眉毛
+    cv::Mat subimage_righteyebrow;
+    cv::resize(image_right_eyebrow, subimage_righteyebrow, cv::Size(64, 64));
     context->setStrategy(eyebrow_detect.get());
-    int detect_righteyebrow = context->detect(image_right_eyebrow.data, image_right_eyebrow.cols, image_right_eyebrow.rows);
+    int detect_righteyebrow = context->detect(subimage_righteyebrow.data, subimage_righteyebrow.cols, subimage_righteyebrow.rows);
     image_input->detect_righteyebrow = detect_righteyebrow;
 
     //下巴
+    cv::Mat subimage_chin;
+    cv::resize(image_chin, subimage_chin, cv::Size(64, 64));
     context->setStrategy(chin_detect.get());
-    int detect_chin = context->detect(image_chin.data, image_chin.cols, image_chin.rows);
+    int detect_chin = context->detect(subimage_chin.data, subimage_chin.cols, subimage_chin.rows);
     image_input->detect_chin = detect_chin;
+
+    //额头
+    cv::Mat subimage_forehead;
+    cv::resize(image_forehead, subimage_forehead, cv::Size(64, 64));
+    context->setStrategy(forehead_detect.get());
+    int detect_forehead = context->detect(subimage_forehead.data, subimage_forehead.cols, subimage_forehead.rows);
+    image_input->detect_forehead = detect_forehead;
 
     //脸部轮廓
     float occok;
     cv::Mat subimage_occ;
     cv::resize(image_color_small(cv::Rect(faces[0].x, faces[0].y, faces[0].w, faces[0].h)), subimage_occ, cv::Size(64, 64));
-    faceocc_->detect(subimage_occ.data, subimage_occ.size().height, subimage_occ.size().width, &occok);
-    std::cout << "occ detect : " <<occok << std::endl;
-    image_input->detect_occ = 0;
-    
-    //额头
-    context->setStrategy(forehead_detect.get());
-    int detect_forehead = context->detect(image_forehead.data, image_forehead.cols, image_forehead.rows);
-    image_input->detect_forehead = detect_forehead;
+    int detect_occ = faceocc_->detect(subimage_occ.data, subimage_occ.size().width, subimage_occ.size().height);
+    std::cout << "occ detect : " <<detect_occ << std::endl;
+    image_input->detect_occ = detect_occ;
 
     count = 0;
     for(auto point : ori_points) {
